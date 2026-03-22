@@ -13,7 +13,8 @@ var upgrader = websocket.Upgrader{
 	ReadBufferSize:  1024,
 	WriteBufferSize: 1024,
 	CheckOrigin: func(r *http.Request) bool {
-		// In a real application, you might want to restrict this further
+		// Origin restriction is unnecessary because the /ws/logs endpoint is protected
+		// by the Basic Auth middleware. Only authenticated users can reach the WebSocket upgrade.
 		return true
 	},
 }
@@ -80,21 +81,25 @@ func parseLogLevel(s string) slog.Level {
 // shouldIncludeLogEntry checks if a log entry should be included based on
 // the minimum level filter.
 func shouldIncludeLogEntry(entry string, minLevel slog.Level) bool {
-	// Parse the log level from the entry format "[LEVEL] MESSAGE"
-	// Expected format: "[DEBUG] ...", "[INFO] ...", "[WARN] ...", "[ERROR] ..."
-	if len(entry) < 2 || entry[0] != '[' {
-		return true
+	// Parse the log level from the entry format: "15:04:05 [LEVEL] MESSAGE"
+	// Expected format: "15:04:05 [DEBUG] ...", "15:04:05 [INFO] ...", etc.
+
+	// Find the opening bracket
+	openIdx := strings.Index(entry, "[")
+	if openIdx == -1 {
+		return true // No bracket found, include entry
 	}
 
-	// Find the closing bracket
-	closingIdx := strings.Index(entry[1:], "]")
-	if closingIdx == -1 {
-		return true
+	// Find the closing bracket after the opening bracket
+	closeIdx := strings.Index(entry[openIdx+1:], "]")
+	if closeIdx == -1 {
+		return true // No closing bracket found, include entry
 	}
 
-	levelStr := strings.ToUpper(strings.TrimSpace(entry[1 : closingIdx+1]))
+	// Extract the level string between brackets
+	levelStr := strings.ToUpper(strings.TrimSpace(entry[openIdx+1 : openIdx+1+closeIdx]))
 	if levelStr == "" {
-		return true
+		return true // Empty level string, include entry
 	}
 
 	entryLevel := parseLogLevel(levelStr)

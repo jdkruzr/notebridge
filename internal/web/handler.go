@@ -53,6 +53,7 @@ type Handler struct {
 	store       TaskStoreInterface
 	notifier    SyncNotifier
 	noteStore   notestore.NoteStore
+	storageRoot string // Root path for validating file access in handleFilesRender, handleFilesHistory, handleFilesContent
 	searchIndex search.SearchIndex
 	proc        processor.Processor
 	scanner     FileScanner
@@ -82,10 +83,16 @@ func formatCreated(ct sql.NullInt64) string {
 
 // NewHandler creates a new web handler with embedded templates.
 func NewHandler(store TaskStoreInterface, notifier SyncNotifier, noteStore notestore.NoteStore, searchIndex search.SearchIndex, proc processor.Processor, scanner FileScanner, logger *slog.Logger, broadcaster *logging.LogBroadcaster) *Handler {
+	return NewHandlerWithStorageRoot(store, notifier, noteStore, searchIndex, proc, scanner, logger, broadcaster, "")
+}
+
+// NewHandlerWithStorageRoot creates a new web handler with storage root path for path validation.
+func NewHandlerWithStorageRoot(store TaskStoreInterface, notifier SyncNotifier, noteStore notestore.NoteStore, searchIndex search.SearchIndex, proc processor.Processor, scanner FileScanner, logger *slog.Logger, broadcaster *logging.LogBroadcaster, storageRoot string) *Handler {
 	h := &Handler{
 		store:       store,
 		notifier:    notifier,
 		noteStore:   noteStore,
+		storageRoot: storageRoot,
 		searchIndex: searchIndex,
 		proc:        proc,
 		scanner:     scanner,
@@ -352,6 +359,35 @@ func safeRelPath(relPath string) (string, bool) {
 	return cleaned, true
 }
 
+// validateAbsPath validates that an absolute path is within the storage root.
+// Returns true if the path is safe to open, false if it attempts path traversal outside the root.
+func (h *Handler) validateAbsPath(path string) bool {
+	if h.storageRoot == "" {
+		// No storage root configured, allow the path (backwards compatibility)
+		return true
+	}
+	if path == "" {
+		return false
+	}
+
+	// Resolve both paths to their canonical form to prevent traversal attacks
+	cleanPath := filepath.Clean(path)
+	cleanRoot := filepath.Clean(h.storageRoot)
+
+	// Use HasPrefix with a path separator check to avoid prefix collisions
+	// e.g., "/data/storage/file" must not match against "/data/storagex/file"
+	if !strings.HasPrefix(cleanPath, cleanRoot) {
+		return false
+	}
+
+	// Ensure the path is within the root, not a sibling
+	if len(cleanPath) > len(cleanRoot) && cleanPath[len(cleanRoot)] != filepath.Separator {
+		return false
+	}
+
+	return true
+}
+
 func (h *Handler) handleFiles(w http.ResponseWriter, r *http.Request) {
 	if h.noteStore == nil {
 		w.Header().Set("Content-Type", "text/html; charset=utf-8")
@@ -508,6 +544,14 @@ func (h *Handler) handleFilesHistory(w http.ResponseWriter, r *http.Request) {
 		w.Write([]byte("null"))
 		return
 	}
+
+	// Validate path is within storage root to prevent path traversal
+	if !h.validateAbsPath(path) {
+		h.logger.Warn("history: path traversal attempt blocked", "path", path)
+		w.Write([]byte("null"))
+		return
+	}
+
 	ctx, cancel := context.WithTimeout(r.Context(), 5*time.Second)
 	defer cancel()
 	job, err := h.proc.GetJob(ctx, path)
@@ -532,6 +576,14 @@ func (h *Handler) handleFilesContent(w http.ResponseWriter, r *http.Request) {
 		w.Write([]byte("[]"))
 		return
 	}
+
+	// Validate path is within storage root to prevent path traversal
+	if !h.validateAbsPath(path) {
+		h.logger.Warn("content: path traversal attempt blocked", "path", path)
+		w.Write([]byte("[]"))
+		return
+	}
+
 	ctx, cancel := context.WithTimeout(r.Context(), 5*time.Second)
 	defer cancel()
 	docs, err := h.searchIndex.GetContent(ctx, path)
@@ -552,6 +604,14 @@ func (h *Handler) handleFilesRender(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "missing path", http.StatusBadRequest)
 		return
 	}
+
+	// Validate path is within storage root to prevent path traversal
+	if !h.validateAbsPath(path) {
+		h.logger.Warn("render: path traversal attempt blocked", "path", path)
+		http.Error(w, "invalid path", http.StatusBadRequest)
+		return
+	}
+
 	pageIdx, err := strconv.Atoi(pageStr)
 	if err != nil || pageIdx < 0 {
 		pageIdx = 0

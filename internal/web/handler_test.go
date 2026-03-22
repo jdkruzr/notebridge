@@ -19,29 +19,44 @@ import (
 )
 
 // handleHealth returns 200 OK for health checks.
+// This is a copy of the production handler in cmd/notebridge/main.go.
+// The test mux needs its own instance to handle unauthenticated /health requests.
 func handleHealth(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
 	fmt.Fprintf(w, `{"status":"ok"}`)
 }
 
+// testServerDependencies holds the mock objects for testing.
+type testServerDependencies struct {
+	store       *mockTaskStore
+	notifier    *mockSyncNotifier
+	noteStore   *mockNoteStore
+	searchIndex *mockSearchIndex
+	processor   *mockProcessor
+	scanner     *mockFileScanner
+}
+
 // setupWebTestServer creates an in-memory test server with all dependencies.
-func setupWebTestServer(t *testing.T, withAuth bool) *httptest.Server {
+// Returns the server and dependencies for seeding test data.
+func setupWebTestServer(t *testing.T, withAuth bool) (*httptest.Server, *testServerDependencies) {
 	t.Helper()
 
-	mockStore := newMockTaskStore()
-	mockNotifier := &mockSyncNotifier{}
-	mockNoteStore := newMockNoteStore()
-	mockSearchIndex := newMockSearchIndex()
-	mockProcessor := newMockProcessor()
-	mockScanner := &mockFileScanner{}
+	deps := &testServerDependencies{
+		store:       newMockTaskStore(),
+		notifier:    &mockSyncNotifier{},
+		noteStore:   newMockNoteStore(),
+		searchIndex: newMockSearchIndex(),
+		processor:   newMockProcessor(),
+		scanner:     &mockFileScanner{},
+	}
 
 	broadcaster := logging.NewLogBroadcaster()
 	logger := logging.Setup(logging.Config{
 		Level: "info",
 	})
 
-	handler := NewHandler(mockStore, mockNotifier, mockNoteStore, mockSearchIndex, mockProcessor, mockScanner, logger, broadcaster)
+	handler := NewHandler(deps.store, deps.notifier, deps.noteStore, deps.searchIndex, deps.processor, deps.scanner, logger, broadcaster)
 
 	// Health endpoint without auth
 	mux := http.NewServeMux()
@@ -57,7 +72,7 @@ func setupWebTestServer(t *testing.T, withAuth bool) *httptest.Server {
 	server := httptest.NewServer(mux)
 	t.Cleanup(func() { server.Close() })
 
-	return server
+	return server, deps
 }
 
 // mockTaskStore implements TaskStoreInterface.
@@ -252,7 +267,26 @@ func (m *mockFileScanner) ScanNow(ctx context.Context) {
 
 // AC8.1: File browser shows files
 func TestFileBrowser(t *testing.T) {
-	server := setupWebTestServer(t, false)
+	server, deps := setupWebTestServer(t, false)
+
+	// Seed mock notestore with test files
+	testFiles := []notestore.NoteFile{
+		{
+			Path:      "/data/storage/note1.note",
+			RelPath:   "note1.note",
+			Name:      "note1.note",
+			FileType:  notestore.FileTypeNote,
+			SizeBytes: 1024,
+		},
+		{
+			Path:      "/data/storage/note2.note",
+			RelPath:   "note2.note",
+			Name:      "note2.note",
+			FileType:  notestore.FileTypeNote,
+			SizeBytes: 2048,
+		},
+	}
+	deps.noteStore.files[""] = testFiles
 
 	resp, err := http.Get(server.URL + "/files")
 	if err != nil {
@@ -263,11 +297,26 @@ func TestFileBrowser(t *testing.T) {
 	if resp.StatusCode != http.StatusOK {
 		t.Fatalf("expected 200, got %d", resp.StatusCode)
 	}
+
+	// Verify response contains file data
+	buf, err := io.ReadAll(resp.Body)
+	if err != nil {
+		t.Fatalf("failed to read response: %v", err)
+	}
+
+	respStr := string(buf)
+	// Verify the page contains the file names
+	if !strings.Contains(respStr, "note1.note") {
+		t.Errorf("expected note1.note in response")
+	}
+	if !strings.Contains(respStr, "note2.note") {
+		t.Errorf("expected note2.note in response")
+	}
 }
 
 // AC8.2: Job status shows pending/in-flight counts from processor
 func TestJobStatus(t *testing.T) {
-	server := setupWebTestServer(t, false)
+	server, _ := setupWebTestServer(t, false)
 
 	resp, err := http.Get(server.URL + "/files/status")
 	if err != nil {
@@ -292,7 +341,16 @@ func TestJobStatus(t *testing.T) {
 
 // AC8.3: FTS5 search returns results
 func TestSearch(t *testing.T) {
-	server := setupWebTestServer(t, false)
+	server, deps := setupWebTestServer(t, false)
+
+	// Seed mock search index with test results
+	searchResults := []search.SearchResult{
+		{
+			Path:    "/data/storage/meeting.note",
+			Snippet: "handwritten meeting notes about project planning",
+		},
+	}
+	deps.searchIndex.results["meeting"] = searchResults
 
 	resp, err := http.Get(server.URL + "/search?q=meeting")
 	if err != nil {
@@ -304,20 +362,43 @@ func TestSearch(t *testing.T) {
 		t.Fatalf("expected 200, got %d", resp.StatusCode)
 	}
 
-	// Verify response contains HTML
+	// Verify response contains the search snippet
 	buf, err := io.ReadAll(resp.Body)
 	if err != nil {
 		t.Fatalf("failed to read response: %v", err)
 	}
 
-	if !strings.Contains(string(buf), "search") && !strings.Contains(string(buf), "NoteBridge") {
-		t.Errorf("expected search content in response")
+	respStr := string(buf)
+	if !strings.Contains(respStr, "meeting") {
+		t.Errorf("expected search result snippet 'meeting' in response")
 	}
 }
 
 // AC8.4: Task list view shows tasks
 func TestTaskList(t *testing.T) {
-	server := setupWebTestServer(t, false)
+	server, deps := setupWebTestServer(t, false)
+
+	// Seed mock task store with test tasks
+	tasks := []*taskstore.Task{
+		{
+			TaskID: "task1",
+			Title:  taskstore.SqlStr("Buy groceries"),
+			Status: taskstore.SqlStr("needsAction"),
+		},
+		{
+			TaskID: "task2",
+			Title:  taskstore.SqlStr("Fix bug in handler"),
+			Status: taskstore.SqlStr("needsAction"),
+		},
+		{
+			TaskID: "task3",
+			Title:  taskstore.SqlStr("Review code"),
+			Status: taskstore.SqlStr("completed"),
+		},
+	}
+	for _, task := range tasks {
+		deps.store.tasks[task.TaskID] = task
+	}
 
 	resp, err := http.Get(server.URL + "/")
 	if err != nil {
@@ -334,15 +415,22 @@ func TestTaskList(t *testing.T) {
 		t.Fatalf("failed to read response: %v", err)
 	}
 
-	// Verify response contains HTML page
-	if !strings.Contains(string(buf), "NoteBridge") {
-		t.Errorf("expected NoteBridge page content")
+	respStr := string(buf)
+	// Verify response contains the task titles
+	if !strings.Contains(respStr, "Buy groceries") {
+		t.Errorf("expected task title 'Buy groceries' in response")
+	}
+	if !strings.Contains(respStr, "Fix bug in handler") {
+		t.Errorf("expected task title 'Fix bug in handler' in response")
+	}
+	if !strings.Contains(respStr, "Review code") {
+		t.Errorf("expected task title 'Review code' in response")
 	}
 }
 
 // Health endpoint should not require authentication
 func TestHealthEndpoint(t *testing.T) {
-	server := setupWebTestServer(t, true) // Even with auth configured
+	server, _ := setupWebTestServer(t, true) // Even with auth configured
 
 	resp, err := http.Get(server.URL + "/health")
 	if err != nil {
@@ -362,7 +450,7 @@ func TestHealthEndpoint(t *testing.T) {
 
 // Auth rejection: missing credentials
 func TestAuthRejection(t *testing.T) {
-	server := setupWebTestServer(t, true)
+	server, _ := setupWebTestServer(t, true)
 
 	resp, err := http.Get(server.URL + "/")
 	if err != nil {
@@ -382,10 +470,17 @@ func TestAuthRejection(t *testing.T) {
 
 // Task completion test
 func TestTaskCompletion(t *testing.T) {
-	server := setupWebTestServer(t, false)
+	server, _ := setupWebTestServer(t, false)
+
+	// Create client that doesn't follow redirects to check redirect status
+	client := &http.Client{
+		CheckRedirect: func(req *http.Request, via []*http.Request) error {
+			return http.ErrUseLastResponse
+		},
+	}
 
 	// Test the endpoint exists
-	resp, err := http.Post(server.URL+"/tasks/task1/complete", "text/plain", nil)
+	resp, err := client.Post(server.URL+"/tasks/task1/complete", "text/plain", nil)
 	if err != nil {
 		t.Fatalf("failed to POST /tasks/task1/complete: %v", err)
 	}
@@ -393,40 +488,47 @@ func TestTaskCompletion(t *testing.T) {
 
 	// Should redirect (303) or return 404 since task doesn't exist
 	if resp.StatusCode != http.StatusSeeOther && resp.StatusCode != http.StatusNotFound {
-		t.Logf("got status %d", resp.StatusCode)
+		t.Errorf("expected 303 or 404, got %d", resp.StatusCode)
 	}
 }
 
 // Processor start/stop test
 func TestProcessorControl(t *testing.T) {
-	server := setupWebTestServer(t, false)
+	server, _ := setupWebTestServer(t, false)
+
+	// Create client that doesn't follow redirects to properly test redirect status code
+	client := &http.Client{
+		CheckRedirect: func(req *http.Request, via []*http.Request) error {
+			return http.ErrUseLastResponse
+		},
+	}
 
 	// Start processor
-	resp, err := http.Post(server.URL+"/processor/start", "text/plain", nil)
+	resp, err := client.Post(server.URL+"/processor/start", "text/plain", nil)
 	if err != nil {
 		t.Fatalf("failed to POST /processor/start: %v", err)
 	}
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusSeeOther {
-		t.Logf("expected 303 for start, got %d", resp.StatusCode)
+		t.Errorf("expected 303 for start, got %d", resp.StatusCode)
 	}
 
 	// Stop processor
-	resp, err = http.Post(server.URL+"/processor/stop", "text/plain", nil)
+	resp, err = client.Post(server.URL+"/processor/stop", "text/plain", nil)
 	if err != nil {
 		t.Fatalf("failed to POST /processor/stop: %v", err)
 	}
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusSeeOther {
-		t.Logf("expected 303 for stop, got %d", resp.StatusCode)
+		t.Errorf("expected 303 for stop, got %d", resp.StatusCode)
 	}
 }
 
 // Verify handlers exist
 func TestHandlersExist(t *testing.T) {
-	server := setupWebTestServer(t, false)
+	server, _ := setupWebTestServer(t, false)
 
 	endpoints := []string{
 		"/",
