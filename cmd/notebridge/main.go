@@ -82,8 +82,25 @@ func main() {
 	// Create EventBus for file change events
 	eventBus := events.NewEventBus()
 
+	// Create NotifyManager for WebSocket client notifications
+	notifier := sync.NewNotifyManager()
+
 	// Create sync.Server
-	server := sync.NewServer(store, authService, blobStore, chunkStore, snowflake, logger, eventBus)
+	server := sync.NewServer(store, authService, blobStore, chunkStore, snowflake, logger, eventBus, notifier)
+
+	// Subscribe notifier to file events and broadcast ServerMessage to connected clients
+	eventBus.Subscribe(events.FileUploaded, func(e events.Event) {
+		payload, _ := buildServerMessage(e)
+		notifier.NotifyUser(e.UserID, "ServerMessage", payload)
+	})
+	eventBus.Subscribe(events.FileModified, func(e events.Event) {
+		payload, _ := buildServerMessage(e)
+		notifier.NotifyUser(e.UserID, "ServerMessage", payload)
+	})
+	eventBus.Subscribe(events.FileDeleted, func(e events.Event) {
+		payload, _ := buildServerMessage(e)
+		notifier.NotifyUser(e.UserID, "ServerMessage", payload)
+	})
 
 	// Create HTTP server
 	httpServer := &http.Server{
@@ -119,4 +136,24 @@ func main() {
 	}
 
 	logger.Info("sync server stopped gracefully")
+}
+
+// buildServerMessage constructs a ServerMessage payload for Socket.IO notification.
+// Format matches SPC: {"code":"200","timestamp":<ms>,"msgType":"FILE-SYN","data":[{"messageType":"STARTSYNC","equipmentNo":"notebridge","timestamp":<ms>}]}
+func buildServerMessage(e events.Event) (string, error) {
+	now := time.Now().UnixMilli()
+	payload := map[string]interface{}{
+		"code":      "200",
+		"timestamp": now,
+		"msgType":   "FILE-SYN",
+		"data": []map[string]interface{}{
+			{
+				"messageType": "STARTSYNC",
+				"equipmentNo": "notebridge",
+				"timestamp":   now,
+			},
+		},
+	}
+	// Use sync's EncodeEvent to wrap it as a Socket.IO event
+	return sync.EncodeEvent("ServerMessage", payload)
 }

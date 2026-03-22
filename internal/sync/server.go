@@ -7,6 +7,7 @@ import (
 	"github.com/sysop/notebridge/internal/blob"
 	"github.com/sysop/notebridge/internal/events"
 	"github.com/sysop/notebridge/internal/syncdb"
+	"golang.org/x/net/websocket"
 )
 
 // Server handles HTTP routing and middleware for the sync API.
@@ -18,6 +19,7 @@ type Server struct {
 	snowflake   *SnowflakeGenerator
 	logger      *slog.Logger
 	eventBus    *events.EventBus
+	notifier    *NotifyManager
 }
 
 // NewServer creates a new Server instance.
@@ -29,6 +31,7 @@ func NewServer(
 	snowflake *SnowflakeGenerator,
 	logger *slog.Logger,
 	eventBus *events.EventBus,
+	notifier *NotifyManager,
 ) *Server {
 	return &Server{
 		store:       store,
@@ -38,6 +41,7 @@ func NewServer(
 		snowflake:   snowflake,
 		logger:      logger,
 		eventBus:    eventBus,
+		notifier:    notifier,
 	}
 }
 
@@ -80,6 +84,9 @@ func (s *Server) Handler() http.Handler {
 	mux.HandleFunc("POST /api/file/3/files/move_v3", s.handleMoveV3)
 	mux.HandleFunc("POST /api/file/3/files/copy_v3", s.handleCopyV3)
 	mux.HandleFunc("POST /api/file/3/files/space_usage", s.handleSpaceUsage)
+
+	// Socket.IO WebSocket endpoint (handles its own auth via query params)
+	mux.Handle("/socket.io/", websocket.Handler(SocketIOHandler(s.authService, s.notifier, s.logger)))
 
 	// Wrap with middleware chain (innermost first, then wrap with next)
 	// Order: mux -> AuthMiddleware -> LoggingMiddleware -> RecoveryMiddleware

@@ -55,10 +55,11 @@ func setupTestServer(t *testing.T) (*httptest.Server, *syncdb.Store) {
 	blobStore := setupTestBlobStore(t)
 	chunkStore := setupTestChunkStore(t)
 
-	// Create event bus
+	// Create event bus and notifier
 	eventBus := events.NewEventBus()
+	notifier := NewNotifyManager()
 
-	server := NewServer(store, authService, blobStore, chunkStore, snowflake, logger, eventBus)
+	server := NewServer(store, authService, blobStore, chunkStore, snowflake, logger, eventBus, notifier)
 
 	// Create httptest.Server with the handler
 	httpServer := httptest.NewServer(server.Handler())
