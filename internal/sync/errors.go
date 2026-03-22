@@ -71,3 +71,21 @@ func ErrInternal(msg string) *SyncError {
 		HTTPStatus: http.StatusInternalServerError,
 	}
 }
+
+// ErrCircularMove returns an E0358 error (circular move detection).
+func ErrCircularMove() *SyncError {
+	return &SyncError{
+		Code:       "E0358",
+		Message:    "cannot move folder into itself",
+		HTTPStatus: http.StatusBadRequest,
+	}
+}
+
+// ErrNameCollision returns an E0322 error (file name collision).
+func ErrNameCollision() *SyncError {
+	return &SyncError{
+		Code:       "E0322",
+		Message:    "file already exists at destination",
+		HTTPStatus: http.StatusConflict,
+	}
+}

@@ -9,6 +9,7 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/sysop/notebridge/internal/blob"
 	"github.com/sysop/notebridge/internal/config"
 	"github.com/sysop/notebridge/internal/sync"
 	"github.com/sysop/notebridge/internal/syncdb"
@@ -71,8 +72,14 @@ func main() {
 	// Create AuthService
 	authService := sync.NewAuthService(store, snowflake)
 
+	// Create BlobStore (local filesystem)
+	blobStore := blob.NewLocalStore(cfg.BlobStorePath)
+
+	// Create ChunkStore (for temporary chunk storage during multipart uploads)
+	chunkStore := blob.NewChunkStore(cfg.ChunkStorePath)
+
 	// Create sync.Server
-	server := sync.NewServer(store, authService, logger)
+	server := sync.NewServer(store, authService, blobStore, chunkStore, snowflake, logger)
 
 	// Create HTTP server
 	httpServer := &http.Server{

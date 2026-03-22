@@ -11,9 +11,11 @@ type Config struct {
 	DBPath string
 
 	// Storage
-	StoragePath string
-	BackupPath  string
-	CachePath   string
+	StoragePath   string
+	BackupPath    string
+	CachePath     string
+	BlobStorePath string
+	ChunkStorePath string
 
 	// Network
 	WebListenAddr  string
@@ -36,6 +38,8 @@ func Load() (*Config, error) {
 		StoragePath:      envOrDefault("NB_STORAGE_PATH", "/data/storage"),
 		BackupPath:       envOrDefault("NB_BACKUP_PATH", "/data/backups"),
 		CachePath:        envOrDefault("NB_CACHE_PATH", "/data/cache"),
+		BlobStorePath:    envOrDefault("NB_BLOB_STORE_PATH", "/data/blobs"),
+		ChunkStorePath:   envOrDefault("NB_CHUNK_STORE_PATH", "/data/chunks"),
 		WebListenAddr:    envOrDefault("NB_WEB_LISTEN_ADDR", ":8443"),
 		SyncListenAddr:   envOrDefault("NB_SYNC_LISTEN_ADDR", ":19071"),
 		LogLevel:         envOrDefault("NB_LOG_LEVEL", "info"),

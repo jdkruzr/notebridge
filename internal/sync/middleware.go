@@ -67,12 +67,16 @@ func AuthMiddleware(authService *AuthService) func(http.Handler) http.Handler {
 }
 
 // isPublicEndpoint returns true if the path is a public endpoint that doesn't require auth.
+// OSS endpoints use signed URL verification instead of JWT auth.
 func isPublicEndpoint(path string) bool {
 	// Add public endpoints here as needed
 	publicPaths := map[string]bool{
 		"/api/user/login/challenge": true,
 		"/api/user/login/verify":    true,
 		"/health":                   true,
+		"/api/oss/download":         true, // Signed URL verification instead of JWT
+		"/api/oss/upload":           true, // Signed URL verification instead of JWT
+		"/api/oss/upload/part":      true, // Signed URL verification instead of JWT
 	}
 	return publicPaths[path]
 }

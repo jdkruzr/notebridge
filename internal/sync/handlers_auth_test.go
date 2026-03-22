@@ -12,8 +12,24 @@ import (
 	"net/http/httptest"
 	"testing"
 
+	"github.com/sysop/notebridge/internal/blob"
 	"github.com/sysop/notebridge/internal/syncdb"
 )
+
+// BlobStore is an alias for the blob.BlobStore interface for use in this package
+type BlobStore = blob.BlobStore
+
+// LocalStore is an alias for the blob.LocalStore for use in this package
+type LocalStore = blob.LocalStore
+
+// ChunkStore is an alias for the blob.ChunkStore for use in this package
+type ChunkStore = blob.ChunkStore
+
+// NewLocalStore is an alias for blob.NewLocalStore
+var NewLocalStore = blob.NewLocalStore
+
+// NewChunkStore is an alias for blob.NewChunkStore
+var NewChunkStore = blob.NewChunkStore
 
 // setupTestServer creates an in-memory SQLite DB, bootstraps a test user,
 // creates AuthService and sync.Server, and returns httptest.Server and Store.
@@ -48,7 +64,12 @@ func setupTestServer(t *testing.T) (*httptest.Server, *syncdb.Store) {
 	// Create AuthService and Server
 	snowflake := NewSnowflakeGenerator()
 	authService := NewAuthService(store, snowflake)
-	server := NewServer(store, authService, logger)
+
+	// Create blob stores for testing
+	blobStore := setupTestBlobStore(t)
+	chunkStore := setupTestChunkStore(t)
+
+	server := NewServer(store, authService, blobStore, chunkStore, snowflake, logger)
 
 	// Create httptest.Server with the handler
 	httpServer := httptest.NewServer(server.Handler())
@@ -60,6 +81,23 @@ func setupTestServer(t *testing.T) (*httptest.Server, *syncdb.Store) {
 	})
 
 	return httpServer, store
+}
+
+// setupTestBlobStore creates a temporary blob store for testing
+func setupTestBlobStore(t *testing.T) BlobStore {
+	return setupLocalBlobStore(t)
+}
+
+// setupLocalBlobStore creates a local blob store in a temp directory
+func setupLocalBlobStore(t *testing.T) *LocalStore {
+	tempDir := t.TempDir()
+	return NewLocalStore(tempDir)
+}
+
+// setupTestChunkStore creates a temporary chunk store for testing
+func setupTestChunkStore(t *testing.T) *ChunkStore {
+	tempDir := t.TempDir()
+	return NewChunkStore(tempDir)
 }
 
 // TestAC11FullLoginFlow tests AC1.1: full challenge-response via HTTP.
