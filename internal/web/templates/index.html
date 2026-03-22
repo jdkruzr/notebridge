@@ -1,0 +1,664 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>NoteBridge Tasks</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            background: #f5f5f5;
+            color: #333;
+        }
+        .container {
+            max-width: 900px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        h1 {
+            color: #1a1a1a;
+            margin-bottom: 30px;
+            font-size: 28px;
+        }
+        .tabs {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+            border-bottom: 2px solid #ddd;
+        }
+        .tab-button {
+            background: none;
+            border: none;
+            padding: 12px 20px;
+            font-size: 16px;
+            cursor: pointer;
+            color: #666;
+            border-bottom: 3px solid transparent;
+            transition: all 0.2s;
+        }
+        .tab-button.active {
+            color: #0066cc;
+            border-bottom-color: #0066cc;
+        }
+        .tab-button:hover {
+            color: #0066cc;
+        }
+        .tab-content {
+            display: none;
+        }
+        .tab-content.active {
+            display: block;
+        }
+        .card {
+            background: white;
+            border-radius: 8px;
+            padding: 20px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+        }
+        .form-group {
+            margin-bottom: 15px;
+        }
+        label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: 500;
+            color: #333;
+        }
+        input {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 14px;
+            font-family: inherit;
+        }
+        input:focus {
+            outline: none;
+            border-color: #0066cc;
+            box-shadow: 0 0 0 3px rgba(0,102,204,0.1);
+        }
+        button {
+            background: #0066cc;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 4px;
+            font-size: 14px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+        button:hover {
+            background: #0052a3;
+        }
+        button:active {
+            background: #004080;
+        }
+        .table-container {
+            overflow-x: auto;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        th {
+            background: #f9f9f9;
+            padding: 12px;
+            text-align: left;
+            font-weight: 600;
+            border-bottom: 2px solid #ddd;
+            font-size: 13px;
+            color: #666;
+            text-transform: uppercase;
+        }
+        td {
+            padding: 12px;
+            border-bottom: 1px solid #eee;
+        }
+        tr:hover {
+            background: #fafafa;
+        }
+        .task-title {
+            font-weight: 500;
+            color: #1a1a1a;
+        }
+        .task-status {
+            display: inline-block;
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 12px;
+            font-weight: 500;
+        }
+        .status-needsaction {
+            background: #fff3cd;
+            color: #664d03;
+        }
+        .status-completed {
+            background: #d1e7dd;
+            color: #0f5132;
+            text-decoration: line-through;
+        }
+        .task-due-date {
+            color: #666;
+            font-size: 14px;
+        }
+        .task-actions {
+            text-align: right;
+        }
+        .btn-small {
+            background: #0066cc;
+            color: white;
+            border: none;
+            padding: 6px 12px;
+            border-radius: 4px;
+            font-size: 12px;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+        .btn-small:hover {
+            background: #0052a3;
+        }
+        .empty-state {
+            text-align: center;
+            padding: 40px 20px;
+            color: #999;
+        }
+        .empty-state p {
+            font-size: 16px;
+            margin-bottom: 10px;
+        }
+        #log-output {
+            background: #1e1e1e;
+            color: #d4d4d4;
+            padding: 15px;
+            border-radius: 4px;
+            font-family: 'Monaco', 'Courier New', monospace;
+            font-size: 13px;
+            height: 400px;
+            overflow-y: auto;
+            line-height: 1.4;
+            white-space: pre-wrap;
+            word-wrap: break-word;
+        }
+        .log-entry {
+            margin-bottom: 4px;
+        }
+        .log-debug { color: #858585; }
+        .log-info { color: #d4d4d4; }
+        .log-warn { color: #ce9178; }
+        .log-error { color: #f48771; }
+        .log-filters {
+            margin-bottom: 15px;
+        }
+        .log-filter-select {
+            padding: 8px 12px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 14px;
+            background: white;
+        }
+        .breadcrumb { margin-bottom: 1rem; font-size: 0.9rem; }
+        .breadcrumb a { color: #0066cc; text-decoration: none; }
+        .breadcrumb .sep { margin: 0 0.3rem; color: #999; }
+        .badge { display: inline-block; padding: 0.2rem 0.5rem; border-radius: 3px; font-size: 0.75rem; font-weight: 600; }
+        .badge-unprocessed { background: #f0f0f0; color: #666; }
+        .badge-pending     { background: #fff3cd; color: #856404; }
+        .badge-progress    { background: #cfe2ff; color: #084298; }
+        .badge-done        { background: #d1e7dd; color: #0f5132; }
+        .badge-failed      { background: #f8d7da; color: #842029; }
+        .badge-skipped     { background: #e2e3e5; color: #41464b; }
+        .badge-unsupported { background: #f0f0f0; color: #999; font-style: italic; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>NoteBridge Tasks</h1>
+
+        <div class="tabs">
+            <button class="tab-button {{if eq .activeTab "tasks"}}active{{end}}" onclick="switchTab('tasks')">Tasks</button>
+            <button class="tab-button {{if eq .activeTab "logs"}}active{{end}}" onclick="switchTab('logs')">Logs</button>
+            <a class="tab-button {{if eq .activeTab "files"}}active{{end}}" href="/files" style="text-decoration:none;">Files</a>
+            <a class="tab-button {{if eq .activeTab "search"}}active{{end}}" href="/search" style="text-decoration:none;">Search</a>
+        </div>
+
+        <!-- Tasks Tab -->
+        <div id="tasks" class="tab-content active">
+            <!-- Create Task Form -->
+            <div class="card">
+                <h2>Create New Task</h2>
+                <form method="POST" action="/tasks">
+                    <div class="form-group">
+                        <label for="title">Task Title *</label>
+                        <input type="text" id="title" name="title" required placeholder="Enter task title">
+                    </div>
+                    <div class="form-group">
+                        <label for="due_date">Due Date (optional)</label>
+                        <input type="date" id="due_date" name="due_date">
+                    </div>
+                    <button type="submit">Create Task</button>
+                </form>
+            </div>
+
+            <!-- Task List -->
+            <div class="card">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+                    <h2>Task List</h2>
+                    <label style="font-weight: normal; font-size: 14px; color: #666; cursor: pointer;">
+                        <input type="checkbox" id="show-completed" onchange="toggleCompleted()">
+                        Show completed
+                    </label>
+                </div>
+                {{if .tasks}}
+                <form id="bulk-form" method="POST" action="/tasks/bulk">
+                <div id="bulk-actions" style="display: none; margin-bottom: 15px; padding: 10px; background: #f0f4ff; border-radius: 4px;">
+                    <span id="selected-count" style="font-size: 14px; color: #333; margin-right: 15px;">0 selected</span>
+                    <button type="submit" name="action" value="complete" class="btn-small" style="margin-right: 8px;">Complete Selected</button>
+                    <button type="submit" name="action" value="delete" class="btn-small" style="background: #dc3545;" onclick="return confirm('Delete selected tasks? This cannot be undone.')">Delete Selected</button>
+                </div>
+                <div class="table-container">
+                    <table id="task-table">
+                        <thead>
+                            <tr>
+                                <th style="width: 30px;"><input type="checkbox" id="select-all" onchange="toggleSelectAll()"></th>
+                                <th>Title</th>
+                                <th>Status</th>
+                                <th>Created</th>
+                                <th>Due Date</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {{range .tasks}}
+                            <tr data-status="{{.Status.String}}">
+                                <td><input type="checkbox" name="task_ids" value="{{.TaskID}}" class="task-checkbox" onchange="updateBulkActions()"></td>
+                                <td class="task-title">{{.Title.String}}</td>
+                                <td>
+                                    <span class="task-status {{if eq .Status.String "completed"}}status-completed{{else}}status-needsaction{{end}}">
+                                        {{if eq .Status.String "completed"}}Completed{{else}}Needs Action{{end}}
+                                    </span>
+                                </td>
+                                <td class="task-due-date">{{.CompletedTime | formatCreated}}</td>
+                                <td class="task-due-date">
+                                    {{if gt .DueTime 0}}
+                                        {{.DueTime | formatDueTime}}
+                                    {{else}}
+                                        -
+                                    {{end}}
+                                </td>
+                                <td class="task-actions">
+                                    {{if ne .Status.String "completed"}}
+                                    <button type="submit" formaction="/tasks/{{.TaskID}}/complete" class="btn-small">Complete</button>
+                                    {{end}}
+                                </td>
+                            </tr>
+                            {{end}}
+                        </tbody>
+                    </table>
+                </div>
+                </form>
+                {{else}}
+                <div class="empty-state">
+                    <p>No tasks yet.</p>
+                    <p>Create one above to get started!</p>
+                </div>
+                {{end}}
+            </div>
+        </div>
+
+        <!-- Logs Tab -->
+        <div id="logs" class="tab-content">
+            <div class="card">
+                <h2>Live Logs</h2>
+                <div class="log-filters">
+                    <label for="log-level">Log Level:</label>
+                    <select id="log-level" class="log-filter-select" onchange="changeLogLevel()">
+                        <option value="debug">Debug</option>
+                        <option value="info" selected>Info</option>
+                        <option value="warn">Warning</option>
+                        <option value="error">Error</option>
+                    </select>
+                </div>
+                <div id="log-output"></div>
+            </div>
+        </div>
+
+        <!-- Files Tab -->
+        <div id="files" class="tab-content">
+          {{if .filesError}}
+            <p style="color:#842029; padding:1rem;">{{.filesError}}</p>
+          {{else if .files}}
+            <div style="margin-bottom:1rem; display:flex; align-items:center; gap:1rem;">
+              <span id="proc-status" style="font-size:0.9rem; color:#555;">Loading...</span>
+              <form method="POST" action="/processor/start" style="display:inline;">
+                <button type="submit" class="btn-small">▶ Start</button>
+              </form>
+              <form method="POST" action="/processor/stop" style="display:inline;">
+                <button type="submit" class="btn-small">⏹ Stop</button>
+              </form>
+            </div>
+            <div class="breadcrumb">
+              {{range .breadcrumbs}}
+                <a href="/files?path={{.RelPath}}">{{.Label}}</a><span class="sep">/</span>
+              {{end}}
+            </div>
+            <table class="task-table">
+              <thead>
+                <tr><th>Name</th><th>Type</th><th>Size</th><th>Modified</th><th>Status</th><th>Actions</th></tr>
+              </thead>
+              <tbody>
+                {{range .files}}
+                <tr>
+                  <td>
+                    {{if eq (fileTypeStr .FileType) "note"}}📝{{else if eq (fileTypeStr .FileType) "pdf"}}📄{{else if eq (fileTypeStr .FileType) "epub"}}📚{{else}}📎{{end}}
+                    {{if .IsDir}}<a href="/files?path={{.RelPath}}">{{.Name}}</a>{{else}}{{.Name}}{{end}}
+                  </td>
+                  <td>{{.FileType}}</td>
+                  <td>{{.SizeBytes}}</td>
+                  <td>{{.MTime.Format "2006-01-02"}}</td>
+                  <td>
+                    {{if .IsDir}}
+                      {{/* directories have no processing status */}}
+                    {{else if eq (fileTypeStr .FileType) "note"}}
+                      {{if eq .JobStatus ""}}<span class="badge badge-unprocessed">unprocessed</span>
+                      {{else if eq .JobStatus "pending"}}<span class="badge badge-pending">queued</span>
+                      {{else if eq .JobStatus "in_progress"}}<span class="badge badge-progress">processing</span>
+                      {{else if eq .JobStatus "done"}}<span class="badge badge-done">done</span>
+                      {{else if eq .JobStatus "failed"}}<span class="badge badge-failed">failed</span>
+                      {{else if eq .JobStatus "skipped"}}<span class="badge badge-skipped">skipped</span>
+                      {{end}}
+                    {{else}}
+                      <span class="badge badge-unsupported">unsupported</span>
+                    {{end}}
+                  </td>
+                  <td>
+                    {{if eq (fileTypeStr .FileType) "note"}}
+                    <form method="POST" style="display:inline;">
+                      <input type="hidden" name="path" value="{{.Path}}">
+                      <input type="hidden" name="back" value="{{$.relPath}}">
+                      {{if or (eq .JobStatus "") (eq .JobStatus "done") (eq .JobStatus "failed")}}
+                        <button type="submit" formaction="/files/queue" class="btn-small">Queue</button>
+                      {{end}}
+                      {{if eq .JobStatus "skipped"}}
+                        <button type="submit" formaction="/files/unskip" class="btn-small">Unskip</button>
+                        <button type="submit" formaction="/files/force" class="btn-small">Force</button>
+                      {{else if ne .JobStatus "in_progress"}}
+                        <button type="submit" formaction="/files/skip" class="btn-small">Skip</button>
+                      {{end}}
+                    </form>
+                    <button type="button" class="btn-small"
+                            onclick="showHistory('{{.Path}}')">Details</button>
+                    {{end}}
+                  </td>
+                </tr>
+                {{end}}
+              </tbody>
+            </table>
+          {{else}}
+            <p style="padding:1rem; color:#666;">No files found.</p>
+          {{end}}
+        </div>
+
+        <!-- Search Tab -->
+        <div id="search" class="tab-content">
+          <form method="GET" action="/search" style="margin-bottom:1rem;">
+            <input type="text" name="q" value="{{.searchQuery}}"
+                   placeholder="Search notes..."
+                   style="width:60%; padding:0.4rem; border:1px solid #ccc; border-radius:3px;">
+            <button type="submit" style="padding:0.4rem 0.8rem; margin-left:0.5rem;">Search</button>
+          </form>
+          {{if .searchResults}}
+            <table class="task-table">
+              <thead><tr><th>File</th><th>Page</th><th>Match</th></tr></thead>
+              <tbody>
+                {{range .searchResults}}
+                <tr>
+                  <td><a href="/files?path={{.Path}}">{{.Path}}</a></td>
+                  <td>{{.Page}}</td>
+                  <td>{{.Snippet}}</td>
+                </tr>
+                {{end}}
+              </tbody>
+            </table>
+          {{else if .searchQuery}}
+            <p style="padding:1rem; color:#666;">No results for "{{.searchQuery}}".</p>
+          {{end}}
+        </div>
+    </div>
+
+    <!-- Note details modal -->
+    <div id="history-modal" style="display:none; position:fixed; top:5%; left:50%;
+         transform:translateX(-50%); background:white; border:1px solid #ccc;
+         padding:1.5rem; border-radius:6px; width:800px; max-width:90vw; max-height:85vh;
+         overflow-y:auto; z-index:100; box-shadow:0 4px 12px rgba(0,0,0,0.15);">
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1rem;">
+        <h3 style="margin:0;">Note Details</h3>
+        <button onclick="document.getElementById('history-modal').style.display='none'"
+                class="btn-small">Close</button>
+      </div>
+      <div id="history-job" style="margin-bottom:1rem;">
+        <h4 style="margin:0 0 0.5rem;">Job Info</h4>
+        <pre id="history-content" style="font-size:0.8rem; white-space:pre-wrap; background:#f8f8f8; padding:0.5rem; border-radius:3px; max-height:150px; overflow-y:auto;"></pre>
+      </div>
+      <div id="history-pages"></div>
+    </div>
+
+    <script>
+        // Hide completed tasks by default on page load
+        document.addEventListener('DOMContentLoaded', function() {
+            toggleCompleted();
+        });
+
+        function toggleCompleted() {
+            const show = document.getElementById('show-completed').checked;
+            const rows = document.querySelectorAll('#task-table tbody tr[data-status="completed"]');
+            rows.forEach(function(row) {
+                row.style.display = show ? '' : 'none';
+                if (!show) {
+                    var cb = row.querySelector('.task-checkbox');
+                    if (cb) cb.checked = false;
+                }
+            });
+            updateBulkActions();
+        }
+
+        function toggleSelectAll() {
+            const checked = document.getElementById('select-all').checked;
+            document.querySelectorAll('#task-table tbody tr').forEach(function(row) {
+                if (row.style.display !== 'none') {
+                    var cb = row.querySelector('.task-checkbox');
+                    if (cb) cb.checked = checked;
+                }
+            });
+            updateBulkActions();
+        }
+
+        function updateBulkActions() {
+            const checked = document.querySelectorAll('.task-checkbox:checked');
+            const bar = document.getElementById('bulk-actions');
+            const count = document.getElementById('selected-count');
+            if (checked.length > 0) {
+                bar.style.display = 'block';
+                count.textContent = checked.length + ' selected';
+            } else {
+                bar.style.display = 'none';
+            }
+        }
+
+        let statusInterval = null;
+
+        function updateProcessorStatus() {
+          fetch('/files/status')
+            .then(function(r) { return r.json(); })
+            .then(function(data) {
+              var el = document.getElementById('proc-status');
+              if (el) {
+                var state = data.Running ? '▶ Running' : '⏹ Stopped';
+                el.textContent = state + ' | Pending: ' + data.Pending + ' | Active: ' + data.InFlight;
+              }
+            })
+            .catch(function() {});
+        }
+
+        // On page load, activate the tab the server designated (for /files and /search routes).
+        (function() {
+            const active = "{{.activeTab}}";
+            if (active && active !== "tasks") {
+                const tabs = document.querySelectorAll('.tab-content');
+                tabs.forEach(t => t.classList.remove('active'));
+                const el = document.getElementById(active);
+                if (el) el.classList.add('active');
+                if (active === 'files') {
+                    updateProcessorStatus();
+                    statusInterval = setInterval(updateProcessorStatus, 5000);
+                }
+            }
+        })();
+
+        function switchTab(tabName) {
+            // Hide all tabs
+            const tabs = document.querySelectorAll('.tab-content');
+            tabs.forEach(tab => tab.classList.remove('active'));
+
+            // Deactivate all buttons
+            const buttons = document.querySelectorAll('.tab-button');
+            buttons.forEach(btn => btn.classList.remove('active'));
+
+            // Show selected tab
+            document.getElementById(tabName).classList.add('active');
+
+            // Activate corresponding button
+            event.target.classList.add('active');
+
+            // Clear status polling interval
+            clearInterval(statusInterval);
+
+            // If switching to logs, start WebSocket connection
+            if (tabName === 'logs') {
+                connectLogs();
+            }
+            // If switching to files, start status polling
+            if (tabName === 'files') {
+                updateProcessorStatus();
+                statusInterval = setInterval(updateProcessorStatus, 5000);
+            }
+        }
+
+        let logWebSocket = null;
+
+        function connectLogs() {
+            if (logWebSocket !== null && logWebSocket.readyState === WebSocket.OPEN) {
+                return;
+            }
+
+            const level = document.getElementById('log-level').value;
+            const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+            const url = protocol + '//' + window.location.host + '/ws/logs?level=' + level;
+
+            logWebSocket = new WebSocket(url);
+
+            logWebSocket.onmessage = function(event) {
+                const logOutput = document.getElementById('log-output');
+                let lines = logOutput.textContent.split('\n');
+
+                // Keep only last 100 lines
+                if (lines.length > 100) {
+                    lines = lines.slice(-100);
+                }
+
+                lines.push(event.data);
+                logOutput.textContent = lines.join('\n');
+                logOutput.scrollTop = logOutput.scrollHeight;
+            };
+
+            logWebSocket.onerror = function(error) {
+                const logOutput = document.getElementById('log-output');
+                logOutput.textContent += '\n[Error] WebSocket connection failed\n';
+                logOutput.scrollTop = logOutput.scrollHeight;
+            };
+
+            logWebSocket.onclose = function() {
+                const logOutput = document.getElementById('log-output');
+                logOutput.textContent += '\n[Info] WebSocket connection closed\n';
+            };
+        }
+
+        function changeLogLevel() {
+            if (logWebSocket !== null && logWebSocket.readyState === WebSocket.OPEN) {
+                logWebSocket.close();
+            }
+            logWebSocket = null;
+            document.getElementById('log-output').textContent = '';
+            connectLogs();
+        }
+
+        function showHistory(path) {
+          var modal = document.getElementById('history-modal');
+          var jobPre = document.getElementById('history-content');
+          var pagesDiv = document.getElementById('history-pages');
+          jobPre.textContent = 'Loading...';
+          pagesDiv.innerHTML = '';
+          modal.style.display = 'block';
+
+          // Fetch job info
+          fetch('/files/history?path=' + encodeURIComponent(path))
+            .then(function(r) { return r.json(); })
+            .then(function(data) {
+              jobPre.textContent = data ? JSON.stringify(data, null, 2) : 'No job record found.';
+            })
+            .catch(function() { jobPre.textContent = 'Failed to load job info.'; });
+
+          // Fetch indexed content + render images
+          fetch('/files/content?path=' + encodeURIComponent(path))
+            .then(function(r) { return r.json(); })
+            .then(function(pages) {
+              if (!pages || pages.length === 0) {
+                pagesDiv.innerHTML = '<p style="color:#666;">No indexed content.</p>';
+                return;
+              }
+              pagesDiv.innerHTML = '<h4 style="margin:0 0 0.5rem;">Pages</h4>';
+              pages.forEach(function(pg) {
+                var div = document.createElement('div');
+                div.style.cssText = 'display:flex; gap:1rem; margin-bottom:1rem; padding:0.5rem; border:1px solid #eee; border-radius:4px;';
+
+                var imgDiv = document.createElement('div');
+                imgDiv.style.cssText = 'flex-shrink:0;';
+                var img = document.createElement('img');
+                img.src = '/files/render?path=' + encodeURIComponent(pg.Path) + '&page=' + pg.Page;
+                img.alt = 'Page ' + pg.Page;
+                img.style.cssText = 'width:200px; border:1px solid #ddd; border-radius:3px; background:#fafafa;';
+                img.onerror = function() { this.alt = 'No render'; this.style.display = 'none'; };
+                imgDiv.appendChild(img);
+
+                var textDiv = document.createElement('div');
+                textDiv.style.cssText = 'flex:1; min-width:0;';
+                var header = '<strong>Page ' + pg.Page + '</strong> <span style="color:#888; font-size:0.8rem;">[' + pg.Source + ']</span>';
+                var bodyText = pg.BodyText || '<em style="color:#999;">empty</em>';
+                textDiv.innerHTML = header + '<pre style="font-size:0.8rem; white-space:pre-wrap; margin-top:0.3rem; max-height:200px; overflow-y:auto;">' + escapeHtml(bodyText) + '</pre>';
+                if (pg.Keywords) {
+                  textDiv.innerHTML += '<div style="font-size:0.8rem; color:#555; margin-top:0.3rem;">Keywords: ' + escapeHtml(pg.Keywords) + '</div>';
+                }
+
+                div.appendChild(imgDiv);
+                div.appendChild(textDiv);
+                pagesDiv.appendChild(div);
+              });
+            })
+            .catch(function() {
+              pagesDiv.innerHTML = '<p style="color:#842029;">Failed to load content.</p>';
+            });
+        }
+
+        function escapeHtml(text) {
+          var div = document.createElement('div');
+          div.textContent = text;
+          return div.innerHTML;
+        }
+    </script>
+</body>
+</html>
