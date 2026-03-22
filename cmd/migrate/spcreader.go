@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"strings"
 
 	_ "github.com/go-sql-driver/mysql"
 )
@@ -79,6 +80,15 @@ type SPCReader struct {
 	db *sql.DB
 }
 
+// isTableNotFoundError checks if an error is MySQL error 1146 (table doesn't exist).
+func isTableNotFoundError(err error) bool {
+	if err == nil {
+		return false
+	}
+	// MySQL error 1146: Table 'xxx' doesn't exist
+	return strings.Contains(err.Error(), "1146") || strings.Contains(err.Error(), "doesn't exist")
+}
+
 // NewSPCReader connects to SPC's MariaDB and returns a reader.
 func NewSPCReader(dsn string) (*SPCReader, error) {
 	db, err := sql.Open("mysql", dsn)
@@ -121,7 +131,7 @@ func (r *SPCReader) ReadUser(ctx context.Context) (*SPCUser, error) {
 // ReadFiles reads all active files for a user, ordered by folder first.
 func (r *SPCReader) ReadFiles(ctx context.Context, userID int64) ([]SPCFile, error) {
 	query := `
-		SELECT id, directory_id, file_name, inner_name, md5, size, is_folder, create_time, update_time
+		SELECT id, directory_id, file_name, inner_name, COALESCE(md5, ''), COALESCE(size, 0), is_folder, COALESCE(create_time, 0), COALESCE(update_time, 0)
 		FROM f_user_file
 		WHERE user_id = ? AND is_active = 'Y'
 		ORDER BY is_folder DESC, directory_id, file_name
@@ -155,7 +165,7 @@ func (r *SPCReader) ReadFiles(ctx context.Context, userID int64) ([]SPCFile, err
 // ReadTasks reads all non-deleted tasks for a user.
 func (r *SPCReader) ReadTasks(ctx context.Context, userID int64) ([]SPCTask, error) {
 	query := `
-		SELECT task_id, task_list_id, title, detail, status, importance, due_time, completed_time, last_modified, recurrence, is_reminder_on, links
+		SELECT task_id, task_list_id, title, COALESCE(detail, ''), status, COALESCE(importance, ''), COALESCE(due_time, 0), COALESCE(completed_time, 0), COALESCE(last_modified, 0), COALESCE(recurrence, ''), COALESCE(is_reminder_on, 'N'), COALESCE(links, '')
 		FROM t_schedule_task
 		WHERE user_id = ? AND is_deleted = 'N'
 	`
@@ -190,8 +200,13 @@ func (r *SPCReader) ReadTaskGroups(ctx context.Context, userID int64) ([]SPCTask
 
 	rows, err := r.db.QueryContext(ctx, query, userID)
 	if err != nil {
-		// Table might not exist; try inferring from tasks
-		return r.inferTaskGroups(ctx, userID)
+		// Check for MySQL error 1146 (table doesn't exist)
+		if isTableNotFoundError(err) {
+			// Table might not exist; try inferring from tasks
+			return r.inferTaskGroups(ctx, userID)
+		}
+		// For other errors, propagate them
+		return nil, fmt.Errorf("failed to query task groups: %w", err)
 	}
 	defer rows.Close()
 
@@ -215,10 +230,10 @@ func (r *SPCReader) ReadTaskGroups(ctx context.Context, userID int64) ([]SPCTask
 // inferTaskGroups infers task groups from distinct task_list_id values in tasks.
 func (r *SPCReader) inferTaskGroups(ctx context.Context, userID int64) ([]SPCTaskGroup, error) {
 	query := `
-		SELECT DISTINCT task_list_id, title, MAX(last_modified) as last_modified
+		SELECT task_list_id, MIN(title) as title, MAX(last_modified) as last_modified
 		FROM t_schedule_task
 		WHERE user_id = ? AND is_deleted = 'N'
-		GROUP BY task_list_id, title
+		GROUP BY task_list_id
 	`
 
 	rows, err := r.db.QueryContext(ctx, query, userID)
@@ -247,7 +262,7 @@ func (r *SPCReader) inferTaskGroups(ctx context.Context, userID int64) ([]SPCTas
 // ReadSummaries reads all non-deleted summaries for a user.
 func (r *SPCReader) ReadSummaries(ctx context.Context, userID int64) ([]SPCSummary, error) {
 	query := `
-		SELECT id, unique_identifier, name, description, file_id, parent_unique_identifier, content, data_source, source_path, source_type, tags, md5_hash, metadata, is_summary_group, author, creation_time, last_modified_time, handwrite_inner_name
+		SELECT id, unique_identifier, COALESCE(name, ''), COALESCE(description, ''), COALESCE(file_id, 0), COALESCE(parent_unique_identifier, ''), COALESCE(content, ''), COALESCE(data_source, ''), COALESCE(source_path, ''), COALESCE(source_type, ''), COALESCE(tags, ''), COALESCE(md5_hash, ''), COALESCE(metadata, ''), COALESCE(is_summary_group, 'N'), COALESCE(author, ''), COALESCE(creation_time, 0), COALESCE(last_modified_time, 0), COALESCE(handwrite_inner_name, '')
 		FROM t_summary
 		WHERE user_id = ? AND (is_deleted IS NULL OR is_deleted != 'Y')
 	`

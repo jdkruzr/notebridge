@@ -53,7 +53,7 @@ type Migrator struct {
 }
 
 // NewMigrator creates a new migrator.
-func NewMigrator(spc *SPCReader, store *syncdb.Store, blobst *blob.LocalStore, sf *sync.SnowflakeGenerator, spcPath string, logger *slog.Logger) *Migrator {
+func NewMigrator(spc SPCReaderInterface, store *syncdb.Store, blobst *blob.LocalStore, sf *sync.SnowflakeGenerator, spcPath string, logger *slog.Logger) *Migrator {
 	return &Migrator{
 		spcReader: spc,
 		syncStore: store,
@@ -178,10 +178,16 @@ func (m *Migrator) migrateFiles(ctx context.Context) error {
 		m.dirMap[spcFile.ID] = nid
 
 		if !m.dryRun {
+			// Determine parent NoteBridge ID: root folders use 0, others look up parent
+			parentNID := int64(0)
+			if spcFile.DirectoryID != 0 {
+				parentNID = m.dirMap[spcFile.DirectoryID]
+			}
+
 			entry := &syncdb.FileEntry{
 				ID:          nid,
 				UserID:      userID,
-				DirectoryID: 0, // Root
+				DirectoryID: parentNID,
 				FileName:    spcFile.FileName,
 				InnerName:   spcFile.InnerName,
 				IsFolder:    true,
@@ -201,6 +207,25 @@ func (m *Migrator) migrateFiles(ctx context.Context) error {
 		m.logger.Debug("Migrated folder", "spcID", spcFile.ID, "name", spcFile.FileName)
 	}
 
+	// Build a map from SPC folder ID to folder path by walking directory_id tree
+	folderPaths := make(map[int64]string)
+	folderPaths[0] = "" // Root has empty path
+
+	for _, spcFile := range spcFiles {
+		if spcFile.IsFolder {
+			var folderPath string
+			if spcFile.DirectoryID == 0 {
+				// Root folder
+				folderPath = spcFile.FileName
+			} else {
+				// Subfolder: parent path + this folder name
+				parentPath, _ := folderPaths[spcFile.DirectoryID]
+				folderPath = filepath.Join(parentPath, spcFile.FileName)
+			}
+			folderPaths[spcFile.ID] = folderPath
+		}
+	}
+
 	// Process files
 	for _, spcFile := range spcFiles {
 		if spcFile.IsFolder {
@@ -213,8 +238,9 @@ func (m *Migrator) migrateFiles(ctx context.Context) error {
 		nid := m.snowflake.Generate()
 		storageKey := fmt.Sprintf("files/%d", nid)
 
-		// Copy file from SPC to blob storage
-		sourcePath := filepath.Join(m.spcPath, user.Email, "Supernote", spcFile.FileName, spcFile.InnerName)
+		// Reconstruct source path using folder path from tree
+		folderPath, _ := folderPaths[spcFile.DirectoryID]
+		sourcePath := filepath.Join(m.spcPath, user.Email, "Supernote", folderPath, spcFile.InnerName)
 		fileSize, md5Hash, err := m.copyFile(ctx, sourcePath, storageKey)
 		if err != nil {
 			m.stats.MissingFiles++
@@ -339,8 +365,12 @@ func (m *Migrator) migrateTasks(ctx context.Context) error {
 				Links:        t.Links,
 				IsReminderOn: t.IsReminderOn,
 				DueTime:      t.DueTime,
-				CompletedTime: t.LastModified, // SPC: last_modified is actual completion time
 				LastModified: t.LastModified,
+			}
+
+			// Only set CompletedTime when task is completed
+			if t.Status == "completed" {
+				task.CompletedTime = t.LastModified
 			}
 
 			if err := m.syncStore.UpsertScheduleTask(ctx, task); err != nil {

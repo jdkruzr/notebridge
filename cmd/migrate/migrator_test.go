@@ -186,7 +186,7 @@ func TestMigration_FileMigration(t *testing.T) {
 	spcDataPath := tmpDir
 	nbStoragePath := filepath.Join(tmpDir, "storage")
 
-	// Write test file - path is spcPath/email/Supernote/FileName/InnerName
+	// Write test file - path is spcPath/email/Supernote/folderPath/innerName
 	testContent := []byte("test file content")
 	testMD5 := fmt.Sprintf("%x", md5.Sum(testContent))
 	testFileDir := filepath.Join(spcDataPath, "user@example.com", "Supernote", "Documents")
@@ -196,11 +196,11 @@ func TestMigration_FileMigration(t *testing.T) {
 		t.Fatalf("failed to write test file: %v", err)
 	}
 
-	// Create mock data - FileName is the folder name, InnerName is the file name
+	// Create mock data - FileName is the file's own name, InnerName is how it's stored on disk
 	spcUser := &SPCUser{UserID: 1, Email: "user@example.com", PasswordHash: "abc123", Username: "testuser"}
 	spcFiles := []SPCFile{
-		{ID: 1, DirectoryID: 0, FileName: "Documents", InnerName: "Documents", IsFolder: true, CreateTime: 0, UpdateTime: 0},
-		{ID: 100, DirectoryID: 1, FileName: "Documents", InnerName: "test.note", MD5: testMD5, Size: int64(len(testContent)), IsFolder: false, CreateTime: 0, UpdateTime: 0},
+		{ID: 1, DirectoryID: 0, FileName: "Documents", InnerName: "", IsFolder: true, CreateTime: 0, UpdateTime: 0},
+		{ID: 100, DirectoryID: 1, FileName: "test.note", InnerName: "test.note", MD5: testMD5, Size: int64(len(testContent)), IsFolder: false, CreateTime: 0, UpdateTime: 0},
 	}
 
 	mockReader := newMockSPCReader(spcUser, spcFiles, nil, nil, nil)
@@ -265,7 +265,7 @@ func TestMigration_MissingFileHandling(t *testing.T) {
 	// Create mock data with missing files
 	spcUser := &SPCUser{UserID: 1, Email: "user@example.com", PasswordHash: "abc123", Username: "testuser"}
 	spcFiles := []SPCFile{
-		{ID: 1, DirectoryID: 0, FileName: "Documents", IsFolder: true},
+		{ID: 1, DirectoryID: 0, FileName: "Documents", InnerName: "", IsFolder: true},
 		{ID: 100, DirectoryID: 1, FileName: "missing.note", InnerName: "missing.note", MD5: "xyz", Size: 100, IsFolder: false},
 		{ID: 101, DirectoryID: 1, FileName: "also_missing.pdf", InnerName: "also_missing.pdf", MD5: "abc", Size: 200, IsFolder: false},
 	}
@@ -503,8 +503,8 @@ func TestMigration_DryRun(t *testing.T) {
 
 	spcUser := &SPCUser{UserID: 1, Email: "user@example.com", PasswordHash: "abc123", Username: "testuser"}
 	spcFiles := []SPCFile{
-		{ID: 1, DirectoryID: 0, FileName: "Documents", InnerName: "Documents", IsFolder: true},
-		{ID: 100, DirectoryID: 1, FileName: "Documents", InnerName: "test.note", MD5: testMD5, Size: int64(len(testContent)), IsFolder: false},
+		{ID: 1, DirectoryID: 0, FileName: "Documents", InnerName: "", IsFolder: true},
+		{ID: 100, DirectoryID: 1, FileName: "test.note", InnerName: "test.note", MD5: testMD5, Size: int64(len(testContent)), IsFolder: false},
 	}
 	spcTasks := []SPCTask{
 		{TaskID: "task1", TaskListID: "group1", Title: "Task 1", Status: "open"},
