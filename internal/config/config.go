@@ -38,6 +38,10 @@ type Config struct {
 	OCRModel       string
 	OCRConcurrency int
 	OCRMaxFileMB   int
+
+	// CalDAV
+	CalDAVCollectionName string
+	DueTimeMode          string
 }
 
 // Load reads configuration from environment variables with defaults.
@@ -78,6 +82,8 @@ func Load() (*Config, error) {
 		OCRModel:         os.Getenv("NB_OCR_MODEL"),
 		OCRConcurrency:   ocrConcurrency,
 		OCRMaxFileMB:     ocrMaxFileMB,
+		CalDAVCollectionName: envOrDefault("NB_CALDAV_COLLECTION_NAME", "Supernote Tasks"),
+		DueTimeMode:      envOrDefault("NB_DUE_TIME_MODE", "preserve"),
 	}
 
 	// Validate required fields

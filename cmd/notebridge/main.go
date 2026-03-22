@@ -11,7 +11,9 @@ import (
 	"syscall"
 	"time"
 
+	gocaldav "github.com/emersion/go-webdav/caldav"
 	"github.com/sysop/notebridge/internal/blob"
+	"github.com/sysop/notebridge/internal/caldav"
 	"github.com/sysop/notebridge/internal/config"
 	"github.com/sysop/notebridge/internal/events"
 	"github.com/sysop/notebridge/internal/notestore"
@@ -20,6 +22,7 @@ import (
 	"github.com/sysop/notebridge/internal/search"
 	"github.com/sysop/notebridge/internal/sync"
 	"github.com/sysop/notebridge/internal/syncdb"
+	"github.com/sysop/notebridge/internal/taskstore"
 )
 
 func main() {
@@ -193,6 +196,32 @@ func main() {
 	pipe.Start(appCtx)
 	defer pipe.Close()
 
+	// Create TaskStore for CalDAV
+	taskStore := taskstore.New(db, userID)
+
+	// Create notifier adapter for CalDAV
+	caldavNotifier := &eventBusNotifier{bus: eventBus, userID: userID}
+
+	// Create CalDAV backend
+	caldavBackend := caldav.NewBackend(taskStore, "/caldav",
+		cfg.CalDAVCollectionName, cfg.DueTimeMode, caldavNotifier)
+
+	// Create CalDAV handler
+	caldavHandler := &gocaldav.Handler{Backend: caldavBackend, Prefix: "/caldav"}
+
+	// Create web server for CalDAV
+	webMux := http.NewServeMux()
+	webMux.Handle("/caldav/", caldavHandler)
+	webMux.HandleFunc("GET /health", handleHealth)
+
+	// Start web server in a goroutine
+	go func() {
+		logger.Info("starting web server", "addr", cfg.WebListenAddr)
+		if err := http.ListenAndServe(cfg.WebListenAddr, webMux); err != nil && err != http.ErrServerClosed {
+			logger.Error("web server error", "error", err)
+		}
+	}()
+
 	// Create HTTP server
 	httpServer := &http.Server{
 		Addr:         cfg.SyncListenAddr,
@@ -263,4 +292,26 @@ func buildServerMessage(e events.Event) (string, error) {
 	}
 	// Use sync's EncodeEvent to wrap it as a Socket.IO event
 	return sync.EncodeEvent("ServerMessage", payload)
+}
+
+// eventBusNotifier triggers device sync via the event bus.
+// Implements caldav.SyncNotifier interface.
+type eventBusNotifier struct {
+	bus    *events.EventBus
+	userID int64
+}
+
+func (n *eventBusNotifier) Notify(ctx context.Context) error {
+	n.bus.Publish(events.Event{
+		Type:   events.FileModified,
+		UserID: n.userID,
+	})
+	return nil
+}
+
+// handleHealth returns 200 OK for health checks.
+func handleHealth(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	fmt.Fprintf(w, `{"status":"ok"}`)
 }
