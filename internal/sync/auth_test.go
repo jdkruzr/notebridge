@@ -297,6 +297,26 @@ func TestAccountLockout(t *testing.T) {
 	}
 
 	t.Logf("AC1.5 PASS: 6 failed attempts locks account, next attempt returns E0045")
+
+	// Verify lockout clears after window expires:
+	// Set locked_until to the past, then verify correct credentials succeed.
+	pastTime := time.Now().Add(-1 * time.Hour)
+	_, err = store.DB().ExecContext(ctx,
+		`UPDATE users SET locked_until = ?, error_count = 0 WHERE email = ?`,
+		pastTime.Format(time.RFC3339Nano), "test@example.com")
+	if err != nil {
+		t.Fatalf("failed to set locked_until to past: %v", err)
+	}
+
+	randomCode, timestamp2, err := authService.GenerateChallenge(ctx, "test@example.com")
+	if err != nil {
+		t.Fatalf("challenge after lockout expiry: %v", err)
+	}
+	correctHash := fmt.Sprintf("%x", sha256.Sum256([]byte(passwordHash+randomCode)))
+	_, err = authService.VerifyLogin(ctx, "test@example.com", correctHash, timestamp2)
+	if err != nil {
+		t.Errorf("expected login to succeed after lockout expires, got: %v", err)
+	}
 }
 
 func TestExpiredChallenge(t *testing.T) {
