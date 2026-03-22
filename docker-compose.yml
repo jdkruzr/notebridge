@@ -9,6 +9,7 @@ services:
     volumes:
       - ${NB_DATA_DIR:-/data/notebridge}/notebridge.db:/data/notebridge.db
       - ${NB_DATA_DIR:-/data/notebridge}/storage:/data/storage
+      - ${NB_DATA_DIR:-/data/notebridge}/storage/chunks:/data/storage/chunks
       - ${NB_DATA_DIR:-/data/notebridge}/backups:/data/backups
       - ${NB_DATA_DIR:-/data/notebridge}/cache:/data/cache
     environment:
@@ -16,5 +17,7 @@ services:
       - NB_STORAGE_PATH=/data/storage
       - NB_BACKUP_PATH=/data/backups
       - NB_CACHE_PATH=/data/cache
+      - NB_BLOB_STORE_PATH=/data/storage
+      - NB_CHUNK_STORE_PATH=/data/storage/chunks
     env_file:
       - .env

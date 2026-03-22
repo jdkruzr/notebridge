@@ -78,7 +78,8 @@ prompt DATA_DIR "Data directory" "$DEFAULT_DATA_DIR"
 prompt WEB_PORT "Web UI port" "$DEFAULT_WEB_PORT"
 prompt SYNC_PORT "Device sync API port" "$DEFAULT_SYNC_PORT"
 prompt USER_EMAIL "User email" ""
-prompt_password USER_PASSWORD "Password"
+prompt_password USER_PASSWORD "Device password"
+prompt_password WEB_PASSWORD "Web UI password"
 
 echo
 
@@ -86,9 +87,21 @@ echo
 
 info "Generating secrets"
 
-# MD5 hash of password (matching Supernote device protocol)
+# MD5 hash of device password (matching Supernote device protocol)
 USER_PASSWORD_HASH=$(echo -n "$USER_PASSWORD" | md5sum | awk '{print $1}')
-ok "Password MD5 hash computed"
+ok "Device password MD5 hash computed"
+
+# Bcrypt hash of web password
+# Use the notebridge binary to generate the hash
+cd "$SCRIPT_DIR"
+WEB_PASSWORD_HASH=$(./notebridge hash-password "$WEB_PASSWORD" 2>/dev/null || echo "")
+if [[ -z "$WEB_PASSWORD_HASH" ]]; then
+    # Fallback: try to build it first
+    info "Building notebridge for password hashing..."
+    go build -o notebridge ./cmd/notebridge/ || fail "Failed to build notebridge"
+    WEB_PASSWORD_HASH=$(./notebridge hash-password "$WEB_PASSWORD")
+fi
+ok "Web password bcrypt hash generated"
 
 # JWT secret: 32 bytes random hex
 JWT_SECRET=$(openssl rand -hex 32)
@@ -122,6 +135,8 @@ NB_LOG_FORMAT=json
 NB_JWT_SECRET=$JWT_SECRET
 NB_USER_EMAIL=$USER_EMAIL
 NB_USER_PASSWORD_HASH=$USER_PASSWORD_HASH
+NB_WEB_USERNAME=admin
+NB_WEB_PASSWORD_HASH=$WEB_PASSWORD_HASH
 EOF
 ok ".env created"
 

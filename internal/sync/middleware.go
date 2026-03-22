@@ -68,6 +68,7 @@ func AuthMiddleware(authService *AuthService) func(http.Handler) http.Handler {
 
 // isPublicEndpoint returns true if the path is a public endpoint that doesn't require auth.
 // OSS endpoints use signed URL verification instead of JWT auth.
+// Socket.IO performs its own JWT validation via query params.
 func isPublicEndpoint(path string) bool {
 	// Add public endpoints here as needed
 	publicPaths := map[string]bool{
@@ -77,6 +78,7 @@ func isPublicEndpoint(path string) bool {
 		"/api/oss/download":         true, // Signed URL verification instead of JWT
 		"/api/oss/upload":           true, // Signed URL verification instead of JWT
 		"/api/oss/upload/part":      true, // Signed URL verification instead of JWT
+		"/socket.io/":               true, // Socket.IO performs its own JWT validation via query params
 	}
 	return publicPaths[path]
 }

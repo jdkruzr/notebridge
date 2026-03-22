@@ -20,6 +20,7 @@ type Server struct {
 	logger      *slog.Logger
 	eventBus    *events.EventBus
 	notifier    *NotifyManager
+	rateLimiter *RateLimiter
 }
 
 // NewServer creates a new Server instance.
@@ -32,6 +33,7 @@ func NewServer(
 	logger *slog.Logger,
 	eventBus *events.EventBus,
 	notifier *NotifyManager,
+	rateLimiter *RateLimiter,
 ) *Server {
 	return &Server{
 		store:       store,
@@ -42,6 +44,7 @@ func NewServer(
 		logger:      logger,
 		eventBus:    eventBus,
 		notifier:    notifier,
+		rateLimiter: rateLimiter,
 	}
 }
 
@@ -52,8 +55,13 @@ func (s *Server) Handler() http.Handler {
 	mux := http.NewServeMux()
 
 	// Public endpoints (no auth required)
-	mux.HandleFunc("POST /api/user/login/challenge", s.handleChallenge)
-	mux.HandleFunc("POST /api/user/login/verify", s.handleLoginVerify)
+	// Auth endpoints wrapped with rate limiting
+	mux.Handle("POST /api/user/login/challenge",
+		RateLimitMiddleware(s.rateLimiter)(http.HandlerFunc(s.handleChallenge)))
+
+	mux.Handle("POST /api/user/login/verify",
+		RateLimitMiddleware(s.rateLimiter)(http.HandlerFunc(s.handleLoginVerify)))
+
 	mux.HandleFunc("GET /health", s.handleHealth)
 
 	// OSS endpoints (signature-verified, treated as public)

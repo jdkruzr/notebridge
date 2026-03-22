@@ -59,7 +59,13 @@ func setupTestServer(t *testing.T) (*httptest.Server, *syncdb.Store) {
 	eventBus := events.NewEventBus()
 	notifier := NewNotifyManager()
 
-	server := NewServer(store, authService, blobStore, chunkStore, snowflake, logger, eventBus, notifier)
+	// Create rate limiter
+	rateLimiter := NewRateLimiter()
+	t.Cleanup(func() {
+		rateLimiter.Stop()
+	})
+
+	server := NewServer(store, authService, blobStore, chunkStore, snowflake, logger, eventBus, notifier, rateLimiter)
 
 	// Create httptest.Server with the handler
 	httpServer := httptest.NewServer(server.Handler())

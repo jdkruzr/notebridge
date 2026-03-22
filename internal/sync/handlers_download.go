@@ -59,12 +59,15 @@ func (s *Server) handleDownloadV3(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Generate signed download URL with 24-hr TTL
-	downloadURL, err := s.authService.GenerateSignedURL(r.Context(), file.StorageKey, "download", 24*time.Hour)
+	downloadToken, err := s.authService.GenerateSignedURL(r.Context(), file.StorageKey, "download", 24*time.Hour)
 	if err != nil {
 		s.logger.Error("failed to generate download URL", "error", err)
 		jsonError(w, ErrInternal("internal server error"))
 		return
 	}
+
+	// Format as full URL (same format as upload: /api/oss/download?signature={token}&path={path})
+	downloadURL := "/api/oss/download?signature=" + downloadToken + "&path=" + base64PathEncode(file.StorageKey)
 
 	// Return success with download metadata
 	jsonSuccess(w, map[string]interface{}{

@@ -113,8 +113,12 @@ func main() {
 	// Create NotifyManager for WebSocket client notifications
 	notifier := sync.NewNotifyManager()
 
+	// Create RateLimiter for auth endpoints
+	rateLimiter := sync.NewRateLimiter()
+	defer rateLimiter.Stop()
+
 	// Create sync.Server
-	server := sync.NewServer(store, authService, blobStore, chunkStore, snowflake, logger, eventBus, notifier)
+	server := sync.NewServer(store, authService, blobStore, chunkStore, snowflake, logger, eventBus, notifier, rateLimiter)
 
 	// Subscribe notifier to file events and broadcast ServerMessage to connected clients
 	eventTypes := []string{events.FileUploaded, events.FileModified, events.FileDeleted}
