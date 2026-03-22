@@ -1,4 +1,4 @@
-notebridge
+/notebridge
 *.db
 *.db-journal
 *.db-wal
