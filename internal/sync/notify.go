@@ -52,7 +52,7 @@ func (nm *NotifyManager) Unregister(client *wsClient) {
 
 // NotifyUser sends a message to all clients for a specific user.
 // Non-blocking: skips sending if the client's send channel is full.
-func (nm *NotifyManager) NotifyUser(userID int64, event, data string) {
+func (nm *NotifyManager) NotifyUser(userID int64, data string) {
 	nm.mu.RLock()
 	clients := nm.clients[userID]
 	// Make a copy to avoid holding the lock while sending
@@ -72,7 +72,7 @@ func (nm *NotifyManager) NotifyUser(userID int64, event, data string) {
 
 // NotifyAll sends a message to all connected clients.
 // Non-blocking: skips clients with full send channels.
-func (nm *NotifyManager) NotifyAll(event, data string) {
+func (nm *NotifyManager) NotifyAll(data string) {
 	nm.mu.RLock()
 	// Collect all clients
 	var allClients []*wsClient

@@ -7,7 +7,10 @@ import (
 )
 
 func TestEncodeOpenPacket(t *testing.T) {
-	packet := EncodeOpenPacket("test-sid", 25000, 5000)
+	packet, err := EncodeOpenPacket("test-sid", 25000, 5000)
+	if err != nil {
+		t.Fatalf("EncodeOpenPacket failed: %v", err)
+	}
 
 	// Should start with '0'
 	if packet[0] != '0' {
@@ -16,7 +19,7 @@ func TestEncodeOpenPacket(t *testing.T) {
 
 	// Parse the JSON portion
 	var payload map[string]interface{}
-	err := json.Unmarshal([]byte(packet[1:]), &payload)
+	err = json.Unmarshal([]byte(packet[1:]), &payload)
 	if err != nil {
 		t.Fatalf("failed to unmarshal payload: %v", err)
 	}

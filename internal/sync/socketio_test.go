@@ -7,6 +7,7 @@ import (
 	"log/slog"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 	"time"
 
@@ -178,7 +179,7 @@ func TestSocketIOInvalidJWT(t *testing.T) {
 	}
 
 	// Check that it's an error frame (starts with '44')
-	if !startsWith(frame, "44") {
+	if !strings.HasPrefix(frame, "44") {
 		t.Errorf("expected error frame starting with '44', got %q", frame)
 	}
 }
@@ -222,7 +223,7 @@ func TestSocketIORattaPing(t *testing.T) {
 	if eventName != "ratta_ping" {
 		t.Errorf("expected event 'ratta_ping', got %q", eventName)
 	}
-	if !contains(data, "Received") {
+	if !strings.Contains(data, "Received") {
 		t.Errorf("expected 'Received' in response, got %q", data)
 	}
 }
@@ -266,7 +267,7 @@ func TestSocketIOClientMessage(t *testing.T) {
 	if eventName != "ClientMessage" {
 		t.Errorf("expected event 'ClientMessage', got %q", eventName)
 	}
-	if !contains(data, "true") {
+	if !strings.Contains(data, "true") {
 		t.Errorf("expected 'true' in response, got %q", data)
 	}
 }
@@ -303,11 +304,11 @@ func TestSocketIOMultipleDevices(t *testing.T) {
 			"code":    "200",
 			"msgType": "FILE-SYN",
 		})
-		notifier.NotifyUser(e.UserID, "ServerMessage", payload)
+		notifier.NotifyUser(e.UserID, payload)
 	})
 
 	// Publish an event
-	eventBus.Publish(context.Background(), events.Event{
+	eventBus.Publish(events.Event{
 		Type:   events.FileUploaded,
 		FileID: 1,
 		UserID: 2,
@@ -363,25 +364,23 @@ func TestSocketIODisconnectCleanup(t *testing.T) {
 	// Disconnect
 	ws.Close()
 
-	// Give a moment for cleanup
-	time.Sleep(100 * time.Millisecond)
+	// Poll for cleanup with timeout
+	deadline := time.Now().Add(2 * time.Second)
+	for {
+		notifier.mu.RLock()
+		clientCount = len(notifier.clients[3])
+		notifier.mu.RUnlock()
 
-	// Check that client is removed
-	notifier.mu.RLock()
-	clientCount = len(notifier.clients[3])
-	notifier.mu.RUnlock()
+		if clientCount == 0 {
+			break
+		}
 
-	if clientCount != 0 {
-		t.Errorf("expected 0 clients after disconnect, got %d", clientCount)
+		if time.Now().After(deadline) {
+			t.Errorf("timeout waiting for client cleanup: expected 0 clients, got %d", clientCount)
+			return
+		}
+
+		time.Sleep(10 * time.Millisecond)
 	}
 }
 
-// Helper functions for tests
-
-func startsWith(s, prefix string) bool {
-	return len(s) >= len(prefix) && s[:len(prefix)] == prefix
-}
-
-func contains(s, substr string) bool {
-	return len(s) >= len(substr) && (s == substr || len(s) > 0)
-}

@@ -22,15 +22,18 @@ const (
 
 // EncodeOpenPacket returns the Engine.IO open packet with session info.
 // Format: 0{"sid":"<sid>","upgrades":[],"pingInterval":<ms>,"pingTimeout":<ms>}
-func EncodeOpenPacket(sid string, pingInterval, pingTimeout int) string {
+func EncodeOpenPacket(sid string, pingInterval, pingTimeout int) (string, error) {
 	payload := map[string]interface{}{
 		"sid":          sid,
 		"upgrades":     []string{},
 		"pingInterval": pingInterval,
 		"pingTimeout":  pingTimeout,
 	}
-	jsonBytes, _ := json.Marshal(payload)
-	return "0" + string(jsonBytes)
+	jsonBytes, err := json.Marshal(payload)
+	if err != nil {
+		return "", fmt.Errorf("failed to marshal open packet: %w", err)
+	}
+	return "0" + string(jsonBytes), nil
 }
 
 // EncodeEvent returns a Socket.IO event frame.

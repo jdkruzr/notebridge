@@ -1,7 +1,6 @@
 package events
 
 import (
-	"context"
 	"log/slog"
 	"sync"
 )
@@ -31,7 +30,7 @@ func (b *EventBus) Subscribe(eventType string, handler func(Event)) {
 // Publish dispatches an event to all registered handlers for that event type.
 // Handlers are called concurrently in separate goroutines.
 // If a handler panics, the panic is logged but does not affect other handlers or the bus.
-func (b *EventBus) Publish(ctx context.Context, event Event) {
+func (b *EventBus) Publish(event Event) {
 	b.mu.RLock()
 	handlersCopy := make([]func(Event), len(b.handlers[event.Type]))
 	copy(handlersCopy, b.handlers[event.Type])

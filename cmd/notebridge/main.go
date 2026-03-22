@@ -89,18 +89,17 @@ func main() {
 	server := sync.NewServer(store, authService, blobStore, chunkStore, snowflake, logger, eventBus, notifier)
 
 	// Subscribe notifier to file events and broadcast ServerMessage to connected clients
-	eventBus.Subscribe(events.FileUploaded, func(e events.Event) {
-		payload, _ := buildServerMessage(e)
-		notifier.NotifyUser(e.UserID, "ServerMessage", payload)
-	})
-	eventBus.Subscribe(events.FileModified, func(e events.Event) {
-		payload, _ := buildServerMessage(e)
-		notifier.NotifyUser(e.UserID, "ServerMessage", payload)
-	})
-	eventBus.Subscribe(events.FileDeleted, func(e events.Event) {
-		payload, _ := buildServerMessage(e)
-		notifier.NotifyUser(e.UserID, "ServerMessage", payload)
-	})
+	eventTypes := []string{events.FileUploaded, events.FileModified, events.FileDeleted}
+	for _, eventType := range eventTypes {
+		eventBus.Subscribe(eventType, func(e events.Event) {
+			payload, err := buildServerMessage(e)
+			if err != nil {
+				logger.Error("failed to build server message", "error", err, "event", e.Type)
+				return
+			}
+			notifier.NotifyUser(e.UserID, payload)
+		})
+	}
 
 	// Create HTTP server
 	httpServer := &http.Server{

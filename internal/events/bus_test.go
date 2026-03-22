@@ -1,7 +1,6 @@
 package events
 
 import (
-	"context"
 	"testing"
 	"time"
 )
@@ -22,7 +21,7 @@ func TestSubscribeAndPublish(t *testing.T) {
 		Path:   "/test/file.note",
 	}
 
-	bus.Publish(context.Background(), event)
+	bus.Publish(event)
 
 	select {
 	case e := <-received:
@@ -50,7 +49,7 @@ func TestMultipleSubscribers(t *testing.T) {
 		Path:   "/shared/document.note",
 	}
 
-	bus.Publish(context.Background(), event)
+	bus.Publish(event)
 
 	// Both handlers should receive the event
 	select {
@@ -76,7 +75,7 @@ func TestDifferentEventTypes(t *testing.T) {
 	bus.Subscribe(FileDeleted, func(e Event) { deletedReceived <- e })
 
 	// Publish a FileUploaded event
-	bus.Publish(context.Background(), Event{
+	bus.Publish(Event{
 		Type:   FileUploaded,
 		FileID: 100,
 		UserID: 200,
@@ -103,7 +102,7 @@ func TestPublishWithNoSubscribers(t *testing.T) {
 	bus := NewEventBus()
 
 	// Should not panic
-	bus.Publish(context.Background(), Event{
+	bus.Publish(Event{
 		Type:   FileModified,
 		FileID: 555,
 		UserID: 666,
@@ -121,7 +120,7 @@ func TestConcurrentPublish(t *testing.T) {
 	// Publish from 10 concurrent goroutines
 	go func() {
 		for i := 1; i <= 10; i++ {
-			bus.Publish(context.Background(), Event{
+			bus.Publish(Event{
 				Type:   FileUploaded,
 				FileID: int64(i),
 				UserID: int64(i * 100),
@@ -166,7 +165,7 @@ func TestHandlerPanic(t *testing.T) {
 	}
 
 	// Publish the event (panicking handler should not affect second handler)
-	bus.Publish(context.Background(), event)
+	bus.Publish(event)
 
 	select {
 	case <-received:

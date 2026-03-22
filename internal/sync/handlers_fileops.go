@@ -87,7 +87,7 @@ func (s *Server) handleDeleteV3(w http.ResponseWriter, r *http.Request) {
 		// This allows recovery from the recycle_files table if needed
 
 		// Publish FileDeleted event for each deleted file
-		s.eventBus.Publish(r.Context(), events.Event{
+		s.eventBus.Publish(events.Event{
 			Type:   events.FileDeleted,
 			FileID: id,
 			UserID: userID,
@@ -364,7 +364,7 @@ func (s *Server) handleMoveV3(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Publish FileModified event
-	s.eventBus.Publish(r.Context(), events.Event{
+	s.eventBus.Publish(events.Event{
 		Type:   events.FileModified,
 		FileID: fileID,
 		UserID: userID,
@@ -568,7 +568,7 @@ func (s *Server) handleCopyV3(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Publish FileModified event
-	s.eventBus.Publish(r.Context(), events.Event{
+	s.eventBus.Publish(events.Event{
 		Type:   events.FileModified,
 		FileID: newFileID,
 		UserID: userID,

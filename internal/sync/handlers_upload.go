@@ -329,7 +329,7 @@ func (s *Server) handleUploadFinish(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Publish FileUploaded event
-	s.eventBus.Publish(r.Context(), events.Event{
+	s.eventBus.Publish(events.Event{
 		Type:   events.FileUploaded,
 		FileID: fileID,
 		UserID: userID,

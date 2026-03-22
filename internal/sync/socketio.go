@@ -40,7 +40,12 @@ func SocketIOHandler(auth *AuthService, notifier *NotifyManager, logger *slog.Lo
 		sid := hex.EncodeToString(sidBytes)
 
 		// Send open packet (AC3.1)
-		openPacket := EncodeOpenPacket(sid, 25000, 5000)
+		openPacket, err := EncodeOpenPacket(sid, 25000, 5000)
+		if err != nil {
+			logger.Error("failed to encode open packet", "error", err)
+			ws.Close()
+			return
+		}
 		if _, err := io.WriteString(ws, openPacket); err != nil {
 			logger.Warn("failed to write open packet", "error", err)
 			ws.Close()
