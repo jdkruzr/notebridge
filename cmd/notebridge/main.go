@@ -12,10 +12,14 @@ import (
 	"time"
 
 	gocaldav "github.com/emersion/go-webdav/caldav"
+	"golang.org/x/crypto/bcrypt"
+
+	"github.com/sysop/notebridge/internal/auth"
 	"github.com/sysop/notebridge/internal/blob"
 	"github.com/sysop/notebridge/internal/caldav"
 	"github.com/sysop/notebridge/internal/config"
 	"github.com/sysop/notebridge/internal/events"
+	"github.com/sysop/notebridge/internal/logging"
 	"github.com/sysop/notebridge/internal/notestore"
 	"github.com/sysop/notebridge/internal/pipeline"
 	"github.com/sysop/notebridge/internal/processor"
@@ -23,9 +27,21 @@ import (
 	"github.com/sysop/notebridge/internal/sync"
 	"github.com/sysop/notebridge/internal/syncdb"
 	"github.com/sysop/notebridge/internal/taskstore"
+	"github.com/sysop/notebridge/internal/web"
 )
 
 func main() {
+	// Handle hash-password subcommand
+	if len(os.Args) >= 3 && os.Args[1] == "hash-password" {
+		hash, err := bcrypt.GenerateFromPassword([]byte(os.Args[2]), 10)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "error: %v\n", err)
+			os.Exit(1)
+		}
+		fmt.Println(string(hash))
+		return
+	}
+
 	// Load config from environment
 	cfg, err := config.Load()
 	if err != nil {
@@ -33,15 +49,18 @@ func main() {
 		os.Exit(1)
 	}
 
-	// Set up structured logging (JSON handler for now)
-	var logLevel slog.Level
-	if err := logLevel.UnmarshalText([]byte(cfg.LogLevel)); err != nil {
-		logLevel = slog.LevelInfo
-	}
-
-	logger := slog.New(slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{
-		Level: logLevel,
-	}))
+	// Set up structured logging with broadcaster
+	broadcaster := logging.NewLogBroadcaster()
+	logger := logging.Setup(logging.Config{
+		Level:      cfg.LogLevel,
+		Format:     cfg.LogFormat,
+		File:       cfg.LogFile,
+		FileMaxMB:  cfg.LogFileMaxMB,
+		FileMaxAge: cfg.LogFileMaxAge,
+		FileMaxBackup: cfg.LogFileMaxBackup,
+		SyslogAddr: cfg.LogSyslogAddr,
+	})
+	logger = slog.New(logging.NewBroadcastingHandler(logger.Handler(), broadcaster))
 	slog.SetDefault(logger)
 
 	// Open SQLite database
@@ -209,9 +228,16 @@ func main() {
 	// Create CalDAV handler
 	caldavHandler := &gocaldav.Handler{Backend: caldavBackend, Prefix: "/caldav"}
 
-	// Create web server for CalDAV
+	// Create web auth middleware
+	webAuth := auth.New(cfg.WebUsername, cfg.WebPasswordHash)
+
+	// Create web handler for file browser, jobs, search
+	webHandler := web.NewHandler(taskStore, caldavNotifier, noteStore, searchIndex, proc, pipe, logger, broadcaster)
+
+	// Create web server mux with protected handlers
 	webMux := http.NewServeMux()
-	webMux.Handle("/caldav/", caldavHandler)
+	webMux.Handle("/caldav/", webAuth.Wrap(caldavHandler))
+	webMux.Handle("/", webAuth.Wrap(webHandler))
 	webMux.HandleFunc("GET /health", handleHealth)
 
 	// Create web server with graceful shutdown support
@@ -225,9 +251,9 @@ func main() {
 
 	// Start web server in a goroutine
 	go func() {
-		logger.Info("starting web server", "addr", cfg.WebListenAddr)
+		logger.Info("web server starting", "addr", cfg.WebListenAddr)
 		if err := webServer.ListenAndServe(); err != nil && err != http.ErrServerClosed {
-			logger.Error("web server error", "error", err)
+			logger.Error("web server failed", "error", err)
 		}
 	}()
 

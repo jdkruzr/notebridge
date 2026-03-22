@@ -23,12 +23,19 @@ type Config struct {
 	SyncListenAddr string
 
 	// Logging
-	LogLevel  string
-	LogFormat string
+	LogLevel        string
+	LogFormat       string
+	LogFile         string
+	LogFileMaxMB    int
+	LogFileMaxAge   int
+	LogFileMaxBackup int
+	LogSyslogAddr   string
 
 	// Authentication
-	UserEmail        string
-	UserPasswordHash string
+	UserEmail         string
+	UserPasswordHash  string
+	WebUsername       string
+	WebPasswordHash   string
 
 	// OCR Pipeline
 	OCREnabled     bool
@@ -62,6 +69,24 @@ func Load() (*Config, error) {
 		ocrMaxFileMB = n
 	}
 
+	logFileMaxMBStr := envOrDefault("NB_LOG_FILE_MAX_MB", "100")
+	logFileMaxMB := 100
+	if n, err := strconv.Atoi(logFileMaxMBStr); err == nil && n > 0 {
+		logFileMaxMB = n
+	}
+
+	logFileMaxAgeStr := envOrDefault("NB_LOG_FILE_MAX_AGE", "30")
+	logFileMaxAge := 30
+	if n, err := strconv.Atoi(logFileMaxAgeStr); err == nil && n > 0 {
+		logFileMaxAge = n
+	}
+
+	logFileMaxBackupStr := envOrDefault("NB_LOG_FILE_MAX_BACKUP", "3")
+	logFileMaxBackup := 3
+	if n, err := strconv.Atoi(logFileMaxBackupStr); err == nil && n > 0 {
+		logFileMaxBackup = n
+	}
+
 	cfg := &Config{
 		DBPath:           envOrDefault("NB_DB_PATH", "/data/notebridge.db"),
 		StoragePath:      envOrDefault("NB_STORAGE_PATH", "/data/storage"),
@@ -73,8 +98,15 @@ func Load() (*Config, error) {
 		SyncListenAddr:   envOrDefault("NB_SYNC_LISTEN_ADDR", ":19071"),
 		LogLevel:         envOrDefault("NB_LOG_LEVEL", "info"),
 		LogFormat:        envOrDefault("NB_LOG_FORMAT", "json"),
+		LogFile:          os.Getenv("NB_LOG_FILE"),
+		LogFileMaxMB:     logFileMaxMB,
+		LogFileMaxAge:    logFileMaxAge,
+		LogFileMaxBackup: logFileMaxBackup,
+		LogSyslogAddr:    os.Getenv("NB_LOG_SYSLOG_ADDR"),
 		UserEmail:        os.Getenv("NB_USER_EMAIL"),
 		UserPasswordHash: os.Getenv("NB_USER_PASSWORD_HASH"),
+		WebUsername:      envOrDefault("NB_WEB_USERNAME", "admin"),
+		WebPasswordHash:  os.Getenv("NB_WEB_PASSWORD_HASH"),
 		OCREnabled:       ocrEnabled,
 		OCRAPIFormat:     envOrDefault("NB_OCR_FORMAT", "anthropic"),
 		OCRAPIURL:        os.Getenv("NB_OCR_API_URL"),
@@ -92,6 +124,9 @@ func Load() (*Config, error) {
 	}
 	if cfg.UserPasswordHash == "" {
 		return nil, fmt.Errorf("missing required field: NB_USER_PASSWORD_HASH")
+	}
+	if cfg.WebPasswordHash == "" {
+		return nil, fmt.Errorf("missing required field: NB_WEB_PASSWORD_HASH")
 	}
 
 	return cfg, nil
