@@ -10,6 +10,8 @@ import (
 	"time"
 )
 
+var ErrSyncLocked = errors.New("sync locked by another device")
+
 // Store is the data access layer for auth operations.
 type Store struct {
 	db *sql.DB
@@ -32,6 +34,22 @@ type AuthToken struct {
 	UserID     int64
 	EquipmentNo string
 	ExpiresAt  time.Time
+}
+
+// FileEntry represents a file or folder in the catalog.
+type FileEntry struct {
+	ID          int64
+	UserID      int64
+	DirectoryID int64
+	FileName    string
+	InnerName   string
+	StorageKey  string
+	MD5         string
+	Size        int64
+	IsFolder    bool
+	IsActive    bool
+	CreatedAt   time.Time
+	UpdatedAt   time.Time
 }
 
 // NewStore creates a new Store instance.
@@ -349,5 +367,414 @@ func (s *Store) CleanupExpired(ctx context.Context) error {
 		WHERE expires_at < ?
 	`, nowStr)
 
+	return err
+}
+
+// === Sync Lock Methods ===
+
+// AcquireLock attempts to acquire a sync lock for a device.
+// Returns ErrSyncLocked if another device already holds the lock.
+// Sets 10-min TTL.
+func (s *Store) AcquireLock(ctx context.Context, userID int64, equipmentNo string) error {
+	now := time.Now()
+	expiresAt := now.Add(10 * time.Minute).Format(time.RFC3339Nano)
+	nowStr := now.Format(time.RFC3339Nano)
+
+	// Check if another device already holds an unexpired lock
+	query := `
+		SELECT equipment_no FROM sync_locks
+		WHERE user_id = ? AND expires_at > ?
+	`
+
+	var existingDevice string
+	err := s.db.QueryRowContext(ctx, query, userID, nowStr).Scan(&existingDevice)
+	if err == nil && existingDevice != equipmentNo {
+		return ErrSyncLocked
+	}
+	if err != nil && err != sql.ErrNoRows {
+		return err
+	}
+
+	// INSERT OR REPLACE with the new lock
+	insertQuery := `
+		INSERT OR REPLACE INTO sync_locks (user_id, equipment_no, expires_at)
+		VALUES (?, ?, ?)
+	`
+
+	_, err = s.db.ExecContext(ctx, insertQuery, userID, equipmentNo, expiresAt)
+	return err
+}
+
+// ReleaseLock removes the sync lock for a user.
+func (s *Store) ReleaseLock(ctx context.Context, userID int64, equipmentNo string) error {
+	query := `
+		DELETE FROM sync_locks
+		WHERE user_id = ? AND equipment_no = ?
+	`
+
+	_, err := s.db.ExecContext(ctx, query, userID, equipmentNo)
+	return err
+}
+
+// RefreshLock extends the lock expiry to now+10min.
+func (s *Store) RefreshLock(ctx context.Context, userID int64) error {
+	expiresAt := time.Now().Add(10 * time.Minute).Format(time.RFC3339Nano)
+
+	query := `
+		UPDATE sync_locks
+		SET expires_at = ?
+		WHERE user_id = ?
+	`
+
+	_, err := s.db.ExecContext(ctx, query, expiresAt, userID)
+	return err
+}
+
+// === File Catalog Methods ===
+
+// CreateFile inserts a new file entry into the files table.
+func (s *Store) CreateFile(ctx context.Context, f *FileEntry) error {
+	now := time.Now().Format(time.RFC3339Nano)
+	isFolderStr := "N"
+	if f.IsFolder {
+		isFolderStr = "Y"
+	}
+	isActiveStr := "Y"
+	if !f.IsActive {
+		isActiveStr = "N"
+	}
+
+	query := `
+		INSERT INTO files (id, user_id, directory_id, file_name, inner_name, storage_key, md5, size, is_folder, is_active, created_at, updated_at)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+	`
+
+	_, err := s.db.ExecContext(ctx, query,
+		f.ID, f.UserID, f.DirectoryID, f.FileName, f.InnerName, f.StorageKey,
+		f.MD5, f.Size, isFolderStr, isActiveStr, now, now)
+	return err
+}
+
+// GetFile retrieves a file by ID and user_id.
+func (s *Store) GetFile(ctx context.Context, id int64, userID int64) (*FileEntry, error) {
+	query := `
+		SELECT id, user_id, directory_id, file_name, inner_name, storage_key, md5, size, is_folder, is_active, created_at, updated_at
+		FROM files
+		WHERE id = ? AND user_id = ?
+	`
+
+	var f FileEntry
+	var isFolderStr, isActiveStr string
+	var createdAtStr, updatedAtStr string
+
+	err := s.db.QueryRowContext(ctx, query, id, userID).Scan(
+		&f.ID, &f.UserID, &f.DirectoryID, &f.FileName, &f.InnerName, &f.StorageKey,
+		&f.MD5, &f.Size, &isFolderStr, &isActiveStr, &createdAtStr, &updatedAtStr)
+
+	if err == sql.ErrNoRows {
+		return nil, nil
+	}
+	if err != nil {
+		return nil, err
+	}
+
+	f.IsFolder = isFolderStr == "Y"
+	f.IsActive = isActiveStr == "Y"
+	f.CreatedAt, _ = time.Parse(time.RFC3339Nano, createdAtStr)
+	f.UpdatedAt, _ = time.Parse(time.RFC3339Nano, updatedAtStr)
+
+	return &f, nil
+}
+
+// GetFileByPath retrieves a file by user_id, directory_id, and file_name.
+func (s *Store) GetFileByPath(ctx context.Context, userID int64, directoryID int64, fileName string) (*FileEntry, error) {
+	query := `
+		SELECT id, user_id, directory_id, file_name, inner_name, storage_key, md5, size, is_folder, is_active, created_at, updated_at
+		FROM files
+		WHERE user_id = ? AND directory_id = ? AND file_name = ?
+	`
+
+	var f FileEntry
+	var isFolderStr, isActiveStr string
+	var createdAtStr, updatedAtStr string
+
+	err := s.db.QueryRowContext(ctx, query, userID, directoryID, fileName).Scan(
+		&f.ID, &f.UserID, &f.DirectoryID, &f.FileName, &f.InnerName, &f.StorageKey,
+		&f.MD5, &f.Size, &isFolderStr, &isActiveStr, &createdAtStr, &updatedAtStr)
+
+	if err == sql.ErrNoRows {
+		return nil, nil
+	}
+	if err != nil {
+		return nil, err
+	}
+
+	f.IsFolder = isFolderStr == "Y"
+	f.IsActive = isActiveStr == "Y"
+	f.CreatedAt, _ = time.Parse(time.RFC3339Nano, createdAtStr)
+	f.UpdatedAt, _ = time.Parse(time.RFC3339Nano, updatedAtStr)
+
+	return &f, nil
+}
+
+// UpdateFileMD5 updates the MD5, size, and updated_at timestamp for a file.
+func (s *Store) UpdateFileMD5(ctx context.Context, id int64, md5 string, size int64) error {
+	now := time.Now().Format(time.RFC3339Nano)
+
+	query := `
+		UPDATE files
+		SET md5 = ?, size = ?, updated_at = ?
+		WHERE id = ?
+	`
+
+	_, err := s.db.ExecContext(ctx, query, md5, size, now, id)
+	return err
+}
+
+// ListFolder retrieves all files in a directory, ordered by is_folder DESC then file_name.
+func (s *Store) ListFolder(ctx context.Context, userID int64, directoryID int64) ([]FileEntry, error) {
+	query := `
+		SELECT id, user_id, directory_id, file_name, inner_name, storage_key, md5, size, is_folder, is_active, created_at, updated_at
+		FROM files
+		WHERE user_id = ? AND directory_id = ?
+		ORDER BY is_folder DESC, file_name
+	`
+
+	rows, err := s.db.QueryContext(ctx, query, userID, directoryID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var entries []FileEntry
+	for rows.Next() {
+		var f FileEntry
+		var isFolderStr, isActiveStr string
+		var createdAtStr, updatedAtStr string
+
+		err := rows.Scan(
+			&f.ID, &f.UserID, &f.DirectoryID, &f.FileName, &f.InnerName, &f.StorageKey,
+			&f.MD5, &f.Size, &isFolderStr, &isActiveStr, &createdAtStr, &updatedAtStr)
+		if err != nil {
+			return nil, err
+		}
+
+		f.IsFolder = isFolderStr == "Y"
+		f.IsActive = isActiveStr == "Y"
+		f.CreatedAt, _ = time.Parse(time.RFC3339Nano, createdAtStr)
+		f.UpdatedAt, _ = time.Parse(time.RFC3339Nano, updatedAtStr)
+		entries = append(entries, f)
+	}
+
+	return entries, rows.Err()
+}
+
+// ListFolderRecursive recursively retrieves all files and folders within a directory using BFS.
+func (s *Store) ListFolderRecursive(ctx context.Context, userID int64, directoryID int64) ([]FileEntry, error) {
+	var entries []FileEntry
+	var queue []int64
+
+	// Start with the root directory
+	queue = append(queue, directoryID)
+
+	for len(queue) > 0 {
+		currentDir := queue[0]
+		queue = queue[1:]
+
+		// List files in current directory
+		items, err := s.ListFolder(ctx, userID, currentDir)
+		if err != nil {
+			return nil, err
+		}
+
+		for _, item := range items {
+			entries = append(entries, item)
+			// If it's a folder, add to queue for processing
+			if item.IsFolder {
+				queue = append(queue, item.ID)
+			}
+		}
+	}
+
+	return entries, nil
+}
+
+// SoftDelete moves a file to recycle_files and removes it from files table.
+func (s *Store) SoftDelete(ctx context.Context, id int64, userID int64) error {
+	// Get the file first
+	file, err := s.GetFile(ctx, id, userID)
+	if err != nil {
+		return err
+	}
+	if file == nil {
+		return errors.New("file not found")
+	}
+
+	// Begin transaction
+	tx, err := s.db.BeginTx(ctx, nil)
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback()
+
+	now := time.Now().Format(time.RFC3339Nano)
+	isFolderStr := "N"
+	if file.IsFolder {
+		isFolderStr = "Y"
+	}
+	isActiveStr := "Y"
+	if !file.IsActive {
+		isActiveStr = "N"
+	}
+
+	// Insert into recycle_files
+	insertQuery := `
+		INSERT INTO recycle_files (id, user_id, directory_id, file_name, inner_name, storage_key, md5, size, is_folder, is_active, created_at, updated_at, deleted_at, original_directory_id)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+	`
+
+	_, err = tx.ExecContext(ctx, insertQuery,
+		file.ID, file.UserID, file.DirectoryID, file.FileName, file.InnerName, file.StorageKey,
+		file.MD5, file.Size, isFolderStr, isActiveStr, file.CreatedAt.Format(time.RFC3339Nano), file.UpdatedAt.Format(time.RFC3339Nano), now, file.DirectoryID)
+	if err != nil {
+		return err
+	}
+
+	// Delete from files
+	deleteQuery := `
+		DELETE FROM files WHERE id = ? AND user_id = ?
+	`
+
+	_, err = tx.ExecContext(ctx, deleteQuery, id, userID)
+	if err != nil {
+		return err
+	}
+
+	return tx.Commit()
+}
+
+// MoveFile updates the directory_id and file_name for a file, and updates updated_at.
+func (s *Store) MoveFile(ctx context.Context, id int64, newDirectoryID int64, newFileName string) error {
+	now := time.Now().Format(time.RFC3339Nano)
+
+	query := `
+		UPDATE files
+		SET directory_id = ?, file_name = ?, updated_at = ?
+		WHERE id = ?
+	`
+
+	_, err := s.db.ExecContext(ctx, query, newDirectoryID, newFileName, now, id)
+	return err
+}
+
+// GetAncestorIDs walks the parent chain starting from directoryID up to limit levels.
+// Returns a slice of ancestor IDs (stops at directoryID=0 which is root).
+func (s *Store) GetAncestorIDs(ctx context.Context, directoryID int64, limit int) ([]int64, error) {
+	var ancestors []int64
+	currentID := directoryID
+	count := 0
+
+	for currentID != 0 && count < limit {
+		ancestors = append(ancestors, currentID)
+		count++
+
+		// Get parent directory
+		query := `
+			SELECT directory_id FROM files WHERE id = ?
+		`
+
+		var parentID sql.NullInt64
+		err := s.db.QueryRowContext(ctx, query, currentID).Scan(&parentID)
+		if err == sql.ErrNoRows {
+			break
+		}
+		if err != nil {
+			return nil, err
+		}
+
+		if !parentID.Valid {
+			break
+		}
+
+		currentID = parentID.Int64
+	}
+
+	return ancestors, nil
+}
+
+// FindByName finds all file names in a directory matching a pattern for autorename detection.
+// Returns a slice of matching names.
+func (s *Store) FindByName(ctx context.Context, userID int64, directoryID int64, baseName string) ([]string, error) {
+	query := `
+		SELECT file_name FROM files
+		WHERE user_id = ? AND directory_id = ? AND file_name LIKE ?
+	`
+
+	// Use % wildcard for LIKE pattern
+	pattern := baseName + "%"
+
+	rows, err := s.db.QueryContext(ctx, query, userID, directoryID, pattern)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var names []string
+	for rows.Next() {
+		var name string
+		err := rows.Scan(&name)
+		if err != nil {
+			return nil, err
+		}
+		names = append(names, name)
+	}
+
+	return names, rows.Err()
+}
+
+// SpaceUsage returns the total size of all non-folder files for a user.
+func (s *Store) SpaceUsage(ctx context.Context, userID int64) (int64, error) {
+	query := `
+		SELECT COALESCE(SUM(size), 0)
+		FROM files
+		WHERE user_id = ? AND is_folder = 'N'
+	`
+
+	var total int64
+	err := s.db.QueryRowContext(ctx, query, userID).Scan(&total)
+	return total, err
+}
+
+// === Chunk Tracking Methods ===
+
+// SaveChunkRecord inserts a chunk upload record into chunk_uploads table.
+func (s *Store) SaveChunkRecord(ctx context.Context, uploadID string, partNumber, totalChunks int, md5, path string) error {
+	query := `
+		INSERT OR REPLACE INTO chunk_uploads (upload_id, part_number, total_chunks, chunk_md5, path)
+		VALUES (?, ?, ?, ?, ?)
+	`
+
+	_, err := s.db.ExecContext(ctx, query, uploadID, partNumber, totalChunks, md5, path)
+	return err
+}
+
+// CountChunks returns the number of chunks recorded for an uploadID.
+func (s *Store) CountChunks(ctx context.Context, uploadID string) (int, error) {
+	query := `
+		SELECT COUNT(*) FROM chunk_uploads WHERE upload_id = ?
+	`
+
+	var count int
+	err := s.db.QueryRowContext(ctx, query, uploadID).Scan(&count)
+	return count, err
+}
+
+// DeleteChunkRecords removes all chunk records for an uploadID.
+func (s *Store) DeleteChunkRecords(ctx context.Context, uploadID string) error {
+	query := `
+		DELETE FROM chunk_uploads WHERE upload_id = ?
+	`
+
+	_, err := s.db.ExecContext(ctx, query, uploadID)
 	return err
 }
