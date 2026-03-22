@@ -70,9 +70,9 @@ func AuthMiddleware(authService *AuthService) func(http.Handler) http.Handler {
 func isPublicEndpoint(path string) bool {
 	// Add public endpoints here as needed
 	publicPaths := map[string]bool{
-		"/challenge": true,
-		"/login":     true,
-		"/health":    true,
+		"/api/user/login/challenge": true,
+		"/api/user/login/verify":    true,
+		"/health":                   true,
 	}
 	return publicPaths[path]
 }
