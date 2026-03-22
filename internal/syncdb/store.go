@@ -2,16 +2,25 @@ package syncdb
 
 import (
 	"context"
+	"crypto/md5"
 	"crypto/rand"
 	"database/sql"
 	"encoding/hex"
 	"errors"
 	"fmt"
 	"log/slog"
+	"strconv"
 	"time"
 )
 
-var ErrSyncLocked = errors.New("sync locked by another device")
+var (
+	ErrSyncLocked            = errors.New("sync locked by another device")
+	ErrTaskGroupNotFound     = errors.New("task group not found")
+	ErrTaskNotFound          = errors.New("task not found")
+	ErrSummaryGroupNotFound  = errors.New("summary group not found")
+	ErrSummaryNotFound       = errors.New("summary not found")
+	ErrUniqueIDExists        = errors.New("summary unique ID already exists")
+)
 
 // Store is the data access layer for auth operations.
 type Store struct {
@@ -51,6 +60,84 @@ type FileEntry struct {
 	IsActive    bool
 	CreatedAt   time.Time
 	UpdatedAt   time.Time
+}
+
+// ScheduleGroup represents a task list/group.
+type ScheduleGroup struct {
+	TaskListID   string
+	UserID       int64
+	Title        string
+	LastModified int64
+	CreateTime   int64
+}
+
+// ScheduleTask represents a single task.
+type ScheduleTask struct {
+	TaskID           string
+	UserID           int64
+	TaskListID       string
+	Title            string
+	Detail           string
+	Status           string
+	Importance       string
+	Recurrence       string
+	Links            string
+	IsReminderOn     string
+	DueTime          int64
+	CompletedTime    int64
+	LastModified     int64
+	Sort             int64
+	SortCompleted    int64
+	PlanerSort       int64
+	SortTime         int64
+	PlanerSortTime   int64
+	AllSort          int64
+	AllSortCompleted int64
+	AllSortTime      int64
+	RecurrenceID     string
+}
+
+// TaskUpdate represents partial updates for a task.
+type TaskUpdate struct {
+	TaskID string
+	Fields map[string]interface{}
+}
+
+// Summary represents a digest/summary item.
+type Summary struct {
+	ID                      int64
+	UserID                  int64
+	UniqueIdentifier        string
+	Name                    string
+	Description             string
+	FileID                  int64
+	ParentUniqueIdentifier  string
+	Content                 string
+	DataSource              string
+	SourcePath              string
+	SourceType              string
+	Tags                    string
+	MD5Hash                 string
+	HandwriteMD5            string
+	HandwriteInnerName      string
+	Metadata                string
+	CommentFields           string
+	HandwriteFields         string
+	CommentHandwriteName    string
+	IsSummaryGroup          string
+	Author                  string
+	CreationTime            int64
+	LastModifiedTime        int64
+}
+
+// SummaryHash represents lightweight summary hash data.
+type SummaryHash struct {
+	ID                   int64
+	MD5Hash              string
+	HandwriteMD5         string
+	CommentHandwriteName string
+	LastModifiedTime     int64
+	Metadata             string
 }
 
 // NewStore creates a new Store instance.
@@ -846,4 +933,826 @@ func (s *Store) GetFileByStorageKey(ctx context.Context, userID int64, storageKe
 	}
 
 	return &entry, nil
+}
+
+// === Schedule Group Methods ===
+
+// generateTaskListID generates a task list ID from title and timestamp using MD5.
+// If collision is detected, increments a suffix until unique.
+func (s *Store) generateTaskListID(ctx context.Context, userID int64, title string, lastModified int64) (string, error) {
+	// Generate base ID: MD5(title + lastModified)
+	input := fmt.Sprintf("%s%d", title, lastModified)
+	hash := md5.Sum([]byte(input))
+	baseID := hex.EncodeToString(hash[:])
+
+	// Check if ID exists
+	query := `SELECT 1 FROM schedule_groups WHERE task_list_id = ? AND user_id = ?`
+	err := s.db.QueryRowContext(ctx, query, baseID, userID).Scan(nil)
+
+	if err == sql.ErrNoRows {
+		return baseID, nil // No collision
+	}
+	if err != nil {
+		return "", err
+	}
+
+	// Collision detected; try with suffix
+	for i := 1; i <= 1000; i++ {
+		suffixID := baseID + strconv.Itoa(i)
+		err := s.db.QueryRowContext(ctx, query, suffixID, userID).Scan(nil)
+		if err == sql.ErrNoRows {
+			return suffixID, nil
+		}
+		if err != nil {
+			return "", err
+		}
+	}
+
+	return "", errors.New("unable to generate unique task list ID")
+}
+
+// UpsertScheduleGroup inserts or replaces a schedule group.
+// If taskListID is empty, generates a new one via MD5(title+lastModified) with collision incrementing.
+func (s *Store) UpsertScheduleGroup(ctx context.Context, g *ScheduleGroup) error {
+	// Generate ID if empty
+	if g.TaskListID == "" {
+		id, err := s.generateTaskListID(ctx, g.UserID, g.Title, g.LastModified)
+		if err != nil {
+			return err
+		}
+		g.TaskListID = id
+	}
+
+	now := time.Now().Format(time.RFC3339Nano)
+
+	query := `
+		INSERT OR REPLACE INTO schedule_groups (task_list_id, user_id, title, last_modified, create_time, updated_at)
+		VALUES (?, ?, ?, ?, ?, ?)
+	`
+
+	_, err := s.db.ExecContext(ctx, query, g.TaskListID, g.UserID, g.Title, g.LastModified, g.CreateTime, now)
+	return err
+}
+
+// UpdateScheduleGroup partially updates a schedule group.
+func (s *Store) UpdateScheduleGroup(ctx context.Context, taskListID string, userID int64, updates map[string]interface{}) error {
+	// Check if group exists
+	query := `SELECT 1 FROM schedule_groups WHERE task_list_id = ? AND user_id = ?`
+	err := s.db.QueryRowContext(ctx, query, taskListID, userID).Scan(nil)
+	if err == sql.ErrNoRows {
+		return ErrTaskGroupNotFound
+	}
+	if err != nil {
+		return err
+	}
+
+	// Build dynamic update query
+	updateStr := "updated_at = ?"
+	args := []interface{}{time.Now().Format(time.RFC3339Nano)}
+
+	for key, value := range updates {
+		updateStr += fmt.Sprintf(", %s = ?", key)
+		args = append(args, value)
+	}
+
+	args = append(args, taskListID, userID)
+
+	updateQuery := fmt.Sprintf(`
+		UPDATE schedule_groups
+		SET %s
+		WHERE task_list_id = ? AND user_id = ?
+	`, updateStr)
+
+	_, err = s.db.ExecContext(ctx, updateQuery, args...)
+	return err
+}
+
+// DeleteScheduleGroup deletes a group and all its tasks (cascading).
+func (s *Store) DeleteScheduleGroup(ctx context.Context, taskListID string, userID int64) error {
+	tx, err := s.db.BeginTx(ctx, nil)
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback()
+
+	// Delete all tasks in group
+	deleteTasksQuery := `DELETE FROM schedule_tasks WHERE task_list_id = ? AND user_id = ?`
+	_, err = tx.ExecContext(ctx, deleteTasksQuery, taskListID, userID)
+	if err != nil {
+		return err
+	}
+
+	// Delete group
+	deleteGroupQuery := `DELETE FROM schedule_groups WHERE task_list_id = ? AND user_id = ?`
+	_, err = tx.ExecContext(ctx, deleteGroupQuery, taskListID, userID)
+	if err != nil {
+		return err
+	}
+
+	return tx.Commit()
+}
+
+// ListScheduleGroups returns a paginated list of schedule groups for a user.
+func (s *Store) ListScheduleGroups(ctx context.Context, userID int64, page, pageSize int) ([]ScheduleGroup, int, error) {
+	if page < 1 {
+		page = 1
+	}
+	if pageSize < 1 {
+		pageSize = 20
+	}
+
+	// Get total count
+	countQuery := `SELECT COUNT(*) FROM schedule_groups WHERE user_id = ?`
+	var totalCount int
+	err := s.db.QueryRowContext(ctx, countQuery, userID).Scan(&totalCount)
+	if err != nil {
+		return nil, 0, err
+	}
+
+	// Get paginated results
+	offset := (page - 1) * pageSize
+	query := `
+		SELECT task_list_id, user_id, title, last_modified, create_time
+		FROM schedule_groups
+		WHERE user_id = ?
+		ORDER BY task_list_id
+		LIMIT ? OFFSET ?
+	`
+
+	rows, err := s.db.QueryContext(ctx, query, userID, pageSize, offset)
+	if err != nil {
+		return nil, 0, err
+	}
+	defer rows.Close()
+
+	var groups []ScheduleGroup
+	for rows.Next() {
+		var g ScheduleGroup
+		err := rows.Scan(&g.TaskListID, &g.UserID, &g.Title, &g.LastModified, &g.CreateTime)
+		if err != nil {
+			return nil, 0, err
+		}
+		groups = append(groups, g)
+	}
+
+	return groups, totalCount, rows.Err()
+}
+
+// === Schedule Task Methods ===
+
+// generateTaskID generates a random nonce for a task ID.
+func (s *Store) generateTaskID() (string, error) {
+	randomBytes := make([]byte, 16)
+	if _, err := rand.Read(randomBytes); err != nil {
+		return "", err
+	}
+	return hex.EncodeToString(randomBytes), nil
+}
+
+// UpsertScheduleTask inserts or replaces a schedule task.
+// If taskID is empty, generates a random nonce.
+// Validates that taskListID exists if provided.
+func (s *Store) UpsertScheduleTask(ctx context.Context, t *ScheduleTask) error {
+	// Generate ID if empty
+	if t.TaskID == "" {
+		id, err := s.generateTaskID()
+		if err != nil {
+			return err
+		}
+		t.TaskID = id
+	}
+
+	// Validate taskListID exists
+	if t.TaskListID != "" {
+		query := `SELECT 1 FROM schedule_groups WHERE task_list_id = ? AND user_id = ?`
+		err := s.db.QueryRowContext(ctx, query, t.TaskListID, t.UserID).Scan(nil)
+		if err == sql.ErrNoRows {
+			return ErrTaskGroupNotFound
+		}
+		if err != nil {
+			return err
+		}
+	}
+
+	now := time.Now().Format(time.RFC3339Nano)
+
+	query := `
+		INSERT OR REPLACE INTO schedule_tasks
+		(task_id, user_id, task_list_id, title, detail, status, importance, recurrence, links, is_reminder_on,
+		 due_time, completed_time, last_modified, sort, sort_completed, planer_sort, sort_time, planer_sort_time,
+		 all_sort, all_sort_completed, all_sort_time, recurrence_id, updated_at)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+	`
+
+	_, err := s.db.ExecContext(ctx, query,
+		t.TaskID, t.UserID, t.TaskListID, t.Title, t.Detail, t.Status, t.Importance, t.Recurrence, t.Links, t.IsReminderOn,
+		t.DueTime, t.CompletedTime, t.LastModified, t.Sort, t.SortCompleted, t.PlanerSort, t.SortTime, t.PlanerSortTime,
+		t.AllSort, t.AllSortCompleted, t.AllSortTime, t.RecurrenceID, now)
+	return err
+}
+
+// BatchUpdateTasks atomically updates multiple tasks.
+// Validates all taskIDs exist first, then applies updates in a transaction.
+func (s *Store) BatchUpdateTasks(ctx context.Context, userID int64, tasks []TaskUpdate) error {
+	if len(tasks) == 0 {
+		return nil
+	}
+
+	// Validate all taskIDs exist
+	for _, tu := range tasks {
+		query := `SELECT 1 FROM schedule_tasks WHERE task_id = ? AND user_id = ?`
+		err := s.db.QueryRowContext(ctx, query, tu.TaskID, userID).Scan(nil)
+		if err == sql.ErrNoRows {
+			return ErrTaskNotFound
+		}
+		if err != nil {
+			return err
+		}
+	}
+
+	// Begin transaction
+	tx, err := s.db.BeginTx(ctx, nil)
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback()
+
+	now := time.Now().Format(time.RFC3339Nano)
+
+	// Apply updates
+	for _, tu := range tasks {
+		updateStr := "updated_at = ?"
+		args := []interface{}{now}
+
+		for key, value := range tu.Fields {
+			updateStr += fmt.Sprintf(", %s = ?", key)
+			args = append(args, value)
+		}
+
+		args = append(args, tu.TaskID, userID)
+
+		updateQuery := fmt.Sprintf(`
+			UPDATE schedule_tasks
+			SET %s
+			WHERE task_id = ? AND user_id = ?
+		`, updateStr)
+
+		_, err := tx.ExecContext(ctx, updateQuery, args...)
+		if err != nil {
+			return err
+		}
+	}
+
+	return tx.Commit()
+}
+
+// DeleteScheduleTask deletes a task.
+func (s *Store) DeleteScheduleTask(ctx context.Context, taskID string, userID int64) error {
+	query := `DELETE FROM schedule_tasks WHERE task_id = ? AND user_id = ?`
+	_, err := s.db.ExecContext(ctx, query, taskID, userID)
+	return err
+}
+
+// ListScheduleTasks returns a paginated list of tasks with optional sync token filtering.
+// Sorted by last_modified DESC. If syncToken provided, filters to tasks where updated_at >= syncToken.
+// Returns nextSyncToken (current time as millis) only on final page.
+func (s *Store) ListScheduleTasks(ctx context.Context, userID int64, page, pageSize int, syncToken *int64) ([]ScheduleTask, *int64, error) {
+	if page < 1 {
+		page = 1
+	}
+	if pageSize < 1 {
+		pageSize = 20
+	}
+
+	// Get total count with optional sync token filter
+	var countQuery string
+	var countArgs []interface{}
+
+	if syncToken != nil {
+		syncTime := time.UnixMilli(*syncToken).Format(time.RFC3339Nano)
+		countQuery = `SELECT COUNT(*) FROM schedule_tasks WHERE user_id = ? AND updated_at >= ?`
+		countArgs = append(countArgs, userID, syncTime)
+	} else {
+		countQuery = `SELECT COUNT(*) FROM schedule_tasks WHERE user_id = ?`
+		countArgs = append(countArgs, userID)
+	}
+
+	var totalCount int
+	err := s.db.QueryRowContext(ctx, countQuery, countArgs...).Scan(&totalCount)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	// Get paginated results
+	offset := (page - 1) * pageSize
+	isLastPage := (offset + pageSize) >= totalCount
+
+	var query string
+	var args []interface{}
+
+	if syncToken != nil {
+		syncTime := time.UnixMilli(*syncToken).Format(time.RFC3339Nano)
+		query = `
+			SELECT task_id, user_id, task_list_id, title, detail, status, importance, recurrence, links, is_reminder_on,
+				   due_time, completed_time, last_modified, sort, sort_completed, planer_sort, sort_time, planer_sort_time,
+				   all_sort, all_sort_completed, all_sort_time, recurrence_id
+			FROM schedule_tasks
+			WHERE user_id = ? AND updated_at >= ?
+			ORDER BY last_modified DESC
+			LIMIT ? OFFSET ?
+		`
+		args = []interface{}{userID, syncTime, pageSize, offset}
+	} else {
+		query = `
+			SELECT task_id, user_id, task_list_id, title, detail, status, importance, recurrence, links, is_reminder_on,
+				   due_time, completed_time, last_modified, sort, sort_completed, planer_sort, sort_time, planer_sort_time,
+				   all_sort, all_sort_completed, all_sort_time, recurrence_id
+			FROM schedule_tasks
+			WHERE user_id = ?
+			ORDER BY last_modified DESC
+			LIMIT ? OFFSET ?
+		`
+		args = []interface{}{userID, pageSize, offset}
+	}
+
+	rows, err := s.db.QueryContext(ctx, query, args...)
+	if err != nil {
+		return nil, nil, err
+	}
+	defer rows.Close()
+
+	var tasks []ScheduleTask
+	for rows.Next() {
+		var t ScheduleTask
+		var dueTimeStr, completedTimeStr, lastModifiedStr sql.NullString
+
+		err := rows.Scan(&t.TaskID, &t.UserID, &t.TaskListID, &t.Title, &t.Detail, &t.Status, &t.Importance, &t.Recurrence, &t.Links, &t.IsReminderOn,
+			&dueTimeStr, &completedTimeStr, &lastModifiedStr, &t.Sort, &t.SortCompleted, &t.PlanerSort, &t.SortTime, &t.PlanerSortTime,
+			&t.AllSort, &t.AllSortCompleted, &t.AllSortTime, &t.RecurrenceID)
+		if err != nil {
+			return nil, nil, err
+		}
+
+		// Parse datetime fields
+		if dueTimeStr.Valid {
+			if tm, err := time.Parse(time.RFC3339Nano, dueTimeStr.String); err == nil {
+				t.DueTime = tm.Unix() * 1000 // Convert to milliseconds
+			}
+		}
+		if completedTimeStr.Valid {
+			if tm, err := time.Parse(time.RFC3339Nano, completedTimeStr.String); err == nil {
+				t.CompletedTime = tm.Unix() * 1000
+			}
+		}
+		if lastModifiedStr.Valid {
+			if tm, err := time.Parse(time.RFC3339Nano, lastModifiedStr.String); err == nil {
+				t.LastModified = tm.Unix() * 1000
+			}
+		}
+
+		tasks = append(tasks, t)
+	}
+
+	// Return nextSyncToken only on final page
+	var nextToken *int64
+	if isLastPage && syncToken != nil {
+		now := time.Now().UnixMilli()
+		nextToken = &now
+	}
+
+	return tasks, nextToken, rows.Err()
+}
+
+// === Summary Methods ===
+
+// CreateSummary inserts a new summary with Snowflake ID.
+// Checks uniqueness on (user_id, unique_identifier).
+func (s *Store) CreateSummary(ctx context.Context, sum *Summary) error {
+	// Check uniqueness
+	query := `SELECT 1 FROM summaries WHERE user_id = ? AND unique_identifier = ?`
+	err := s.db.QueryRowContext(ctx, query, sum.UserID, sum.UniqueIdentifier).Scan(nil)
+	if err == nil {
+		return ErrUniqueIDExists // Already exists
+	}
+	if err != nil && err != sql.ErrNoRows {
+		return err
+	}
+
+	now := time.Now().Format(time.RFC3339Nano)
+
+	insertQuery := `
+		INSERT INTO summaries
+		(id, user_id, unique_identifier, name, description, file_id, parent_unique_identifier, content,
+		 data_source, source_path, source_type, tags, md5_hash, handwrite_md5, handwrite_inner_name, metadata,
+		 comment_fields, handwrite_fields, comment_handwrite_name, is_summary_group, author, creation_time, last_modified_time, updated_at)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+	`
+
+	_, err = s.db.ExecContext(ctx, insertQuery,
+		sum.ID, sum.UserID, sum.UniqueIdentifier, sum.Name, sum.Description, sum.FileID, sum.ParentUniqueIdentifier, sum.Content,
+		sum.DataSource, sum.SourcePath, sum.SourceType, sum.Tags, sum.MD5Hash, sum.HandwriteMD5, sum.HandwriteInnerName, sum.Metadata,
+		sum.CommentFields, sum.HandwriteFields, sum.CommentHandwriteName, sum.IsSummaryGroup, sum.Author, sum.CreationTime, sum.LastModifiedTime, now)
+	return err
+}
+
+// UpdateSummary partially updates a summary.
+func (s *Store) UpdateSummary(ctx context.Context, id int64, userID int64, updates map[string]interface{}) error {
+	// Check if summary exists
+	query := `SELECT 1 FROM summaries WHERE id = ? AND user_id = ?`
+	err := s.db.QueryRowContext(ctx, query, id, userID).Scan(nil)
+	if err == sql.ErrNoRows {
+		return ErrSummaryNotFound
+	}
+	if err != nil {
+		return err
+	}
+
+	// Build dynamic update query
+	updateStr := "updated_at = ?"
+	args := []interface{}{time.Now().Format(time.RFC3339Nano)}
+
+	for key, value := range updates {
+		updateStr += fmt.Sprintf(", %s = ?", key)
+		args = append(args, value)
+	}
+
+	args = append(args, id, userID)
+
+	updateQuery := fmt.Sprintf(`
+		UPDATE summaries
+		SET %s
+		WHERE id = ? AND user_id = ?
+	`, updateStr)
+
+	_, err = s.db.ExecContext(ctx, updateQuery, args...)
+	return err
+}
+
+// DeleteSummary deletes a summary.
+func (s *Store) DeleteSummary(ctx context.Context, id int64, userID int64) error {
+	query := `DELETE FROM summaries WHERE id = ? AND user_id = ?`
+	_, err := s.db.ExecContext(ctx, query, id, userID)
+	return err
+}
+
+// ListSummaryGroups returns summary groups (is_summary_group='Y') paginated.
+func (s *Store) ListSummaryGroups(ctx context.Context, userID int64, page, pageSize int) ([]Summary, int, error) {
+	if page < 1 {
+		page = 1
+	}
+	if pageSize < 1 {
+		pageSize = 20
+	}
+
+	// Get total count
+	countQuery := `SELECT COUNT(*) FROM summaries WHERE user_id = ? AND is_summary_group = 'Y'`
+	var totalCount int
+	err := s.db.QueryRowContext(ctx, countQuery, userID).Scan(&totalCount)
+	if err != nil {
+		return nil, 0, err
+	}
+
+	// Get paginated results
+	offset := (page - 1) * pageSize
+	query := `
+		SELECT id, user_id, unique_identifier, name, description, file_id, parent_unique_identifier, content,
+		       data_source, source_path, source_type, tags, md5_hash, handwrite_md5, handwrite_inner_name, metadata,
+		       comment_fields, handwrite_fields, comment_handwrite_name, is_summary_group, author, creation_time, last_modified_time
+		FROM summaries
+		WHERE user_id = ? AND is_summary_group = 'Y'
+		ORDER BY id
+		LIMIT ? OFFSET ?
+	`
+
+	rows, err := s.db.QueryContext(ctx, query, userID, pageSize, offset)
+	if err != nil {
+		return nil, 0, err
+	}
+	defer rows.Close()
+
+	var summaries []Summary
+	for rows.Next() {
+		var sum Summary
+		var creationTimeStr, lastModifiedTimeStr sql.NullString
+
+		err := rows.Scan(&sum.ID, &sum.UserID, &sum.UniqueIdentifier, &sum.Name, &sum.Description, &sum.FileID, &sum.ParentUniqueIdentifier, &sum.Content,
+			&sum.DataSource, &sum.SourcePath, &sum.SourceType, &sum.Tags, &sum.MD5Hash, &sum.HandwriteMD5, &sum.HandwriteInnerName, &sum.Metadata,
+			&sum.CommentFields, &sum.HandwriteFields, &sum.CommentHandwriteName, &sum.IsSummaryGroup, &sum.Author, &creationTimeStr, &lastModifiedTimeStr)
+		if err != nil {
+			return nil, 0, err
+		}
+
+		// Parse datetime fields
+		if creationTimeStr.Valid {
+			if tm, err := time.Parse(time.RFC3339Nano, creationTimeStr.String); err == nil {
+				sum.CreationTime = tm.Unix() * 1000
+			}
+		}
+		if lastModifiedTimeStr.Valid {
+			if tm, err := time.Parse(time.RFC3339Nano, lastModifiedTimeStr.String); err == nil {
+				sum.LastModifiedTime = tm.Unix() * 1000
+			}
+		}
+
+		summaries = append(summaries, sum)
+	}
+
+	return summaries, totalCount, rows.Err()
+}
+
+// ListSummaries returns summaries (is_summary_group='N') paginated, optionally filtered by parentUID.
+func (s *Store) ListSummaries(ctx context.Context, userID int64, page, pageSize int, parentUID *string) ([]Summary, int, error) {
+	if page < 1 {
+		page = 1
+	}
+	if pageSize < 1 {
+		pageSize = 20
+	}
+
+	// Get total count
+	var countQuery string
+	var countArgs []interface{}
+
+	if parentUID != nil {
+		countQuery = `SELECT COUNT(*) FROM summaries WHERE user_id = ? AND is_summary_group = 'N' AND parent_unique_identifier = ?`
+		countArgs = append(countArgs, userID, *parentUID)
+	} else {
+		countQuery = `SELECT COUNT(*) FROM summaries WHERE user_id = ? AND is_summary_group = 'N'`
+		countArgs = append(countArgs, userID)
+	}
+
+	var totalCount int
+	err := s.db.QueryRowContext(ctx, countQuery, countArgs...).Scan(&totalCount)
+	if err != nil {
+		return nil, 0, err
+	}
+
+	// Get paginated results
+	offset := (page - 1) * pageSize
+	var query string
+	var args []interface{}
+
+	if parentUID != nil {
+		query = `
+			SELECT id, user_id, unique_identifier, name, description, file_id, parent_unique_identifier, content,
+			       data_source, source_path, source_type, tags, md5_hash, handwrite_md5, handwrite_inner_name, metadata,
+			       comment_fields, handwrite_fields, comment_handwrite_name, is_summary_group, author, creation_time, last_modified_time
+			FROM summaries
+			WHERE user_id = ? AND is_summary_group = 'N' AND parent_unique_identifier = ?
+			ORDER BY id
+			LIMIT ? OFFSET ?
+		`
+		args = []interface{}{userID, *parentUID, pageSize, offset}
+	} else {
+		query = `
+			SELECT id, user_id, unique_identifier, name, description, file_id, parent_unique_identifier, content,
+			       data_source, source_path, source_type, tags, md5_hash, handwrite_md5, handwrite_inner_name, metadata,
+			       comment_fields, handwrite_fields, comment_handwrite_name, is_summary_group, author, creation_time, last_modified_time
+			FROM summaries
+			WHERE user_id = ? AND is_summary_group = 'N'
+			ORDER BY id
+			LIMIT ? OFFSET ?
+		`
+		args = []interface{}{userID, pageSize, offset}
+	}
+
+	rows, err := s.db.QueryContext(ctx, query, args...)
+	if err != nil {
+		return nil, 0, err
+	}
+	defer rows.Close()
+
+	var summaries []Summary
+	for rows.Next() {
+		var sum Summary
+		var creationTimeStr, lastModifiedTimeStr sql.NullString
+
+		err := rows.Scan(&sum.ID, &sum.UserID, &sum.UniqueIdentifier, &sum.Name, &sum.Description, &sum.FileID, &sum.ParentUniqueIdentifier, &sum.Content,
+			&sum.DataSource, &sum.SourcePath, &sum.SourceType, &sum.Tags, &sum.MD5Hash, &sum.HandwriteMD5, &sum.HandwriteInnerName, &sum.Metadata,
+			&sum.CommentFields, &sum.HandwriteFields, &sum.CommentHandwriteName, &sum.IsSummaryGroup, &sum.Author, &creationTimeStr, &lastModifiedTimeStr)
+		if err != nil {
+			return nil, 0, err
+		}
+
+		// Parse datetime fields
+		if creationTimeStr.Valid {
+			if tm, err := time.Parse(time.RFC3339Nano, creationTimeStr.String); err == nil {
+				sum.CreationTime = tm.Unix() * 1000
+			}
+		}
+		if lastModifiedTimeStr.Valid {
+			if tm, err := time.Parse(time.RFC3339Nano, lastModifiedTimeStr.String); err == nil {
+				sum.LastModifiedTime = tm.Unix() * 1000
+			}
+		}
+
+		summaries = append(summaries, sum)
+	}
+
+	return summaries, totalCount, rows.Err()
+}
+
+// ListSummaryHashes returns lightweight hash data for summaries, optionally filtered by parentUID.
+func (s *Store) ListSummaryHashes(ctx context.Context, userID int64, page, pageSize int, parentUID *string) ([]SummaryHash, int, error) {
+	if page < 1 {
+		page = 1
+	}
+	if pageSize < 1 {
+		pageSize = 20
+	}
+
+	// Get total count
+	var countQuery string
+	var countArgs []interface{}
+
+	if parentUID != nil {
+		countQuery = `SELECT COUNT(*) FROM summaries WHERE user_id = ? AND parent_unique_identifier = ?`
+		countArgs = append(countArgs, userID, *parentUID)
+	} else {
+		countQuery = `SELECT COUNT(*) FROM summaries WHERE user_id = ?`
+		countArgs = append(countArgs, userID)
+	}
+
+	var totalCount int
+	err := s.db.QueryRowContext(ctx, countQuery, countArgs...).Scan(&totalCount)
+	if err != nil {
+		return nil, 0, err
+	}
+
+	// Get paginated results
+	offset := (page - 1) * pageSize
+	var query string
+	var args []interface{}
+
+	if parentUID != nil {
+		query = `
+			SELECT id, md5_hash, handwrite_md5, comment_handwrite_name, last_modified_time, metadata
+			FROM summaries
+			WHERE user_id = ? AND parent_unique_identifier = ?
+			ORDER BY id
+			LIMIT ? OFFSET ?
+		`
+		args = []interface{}{userID, *parentUID, pageSize, offset}
+	} else {
+		query = `
+			SELECT id, md5_hash, handwrite_md5, comment_handwrite_name, last_modified_time, metadata
+			FROM summaries
+			WHERE user_id = ?
+			ORDER BY id
+			LIMIT ? OFFSET ?
+		`
+		args = []interface{}{userID, pageSize, offset}
+	}
+
+	rows, err := s.db.QueryContext(ctx, query, args...)
+	if err != nil {
+		return nil, 0, err
+	}
+	defer rows.Close()
+
+	var hashes []SummaryHash
+	for rows.Next() {
+		var h SummaryHash
+		var lastModifiedTimeStr sql.NullString
+
+		err := rows.Scan(&h.ID, &h.MD5Hash, &h.HandwriteMD5, &h.CommentHandwriteName, &lastModifiedTimeStr, &h.Metadata)
+		if err != nil {
+			return nil, 0, err
+		}
+
+		// Parse datetime field
+		if lastModifiedTimeStr.Valid {
+			if tm, err := time.Parse(time.RFC3339Nano, lastModifiedTimeStr.String); err == nil {
+				h.LastModifiedTime = tm.Unix() * 1000
+			}
+		}
+
+		hashes = append(hashes, h)
+	}
+
+	return hashes, totalCount, rows.Err()
+}
+
+// GetSummariesByIDs returns summaries matching specific IDs, paginated.
+func (s *Store) GetSummariesByIDs(ctx context.Context, userID int64, ids []int64, page, pageSize int) ([]Summary, int, error) {
+	if len(ids) == 0 {
+		return []Summary{}, 0, nil
+	}
+
+	if page < 1 {
+		page = 1
+	}
+	if pageSize < 1 {
+		pageSize = 20
+	}
+
+	// Build IN clause
+	placeholders := ""
+	args := []interface{}{userID}
+	for _, id := range ids {
+		if placeholders != "" {
+			placeholders += ","
+		}
+		placeholders += "?"
+		args = append(args, id)
+	}
+
+	// Get total count
+	countQuery := fmt.Sprintf(`SELECT COUNT(*) FROM summaries WHERE user_id = ? AND id IN (%s)`, placeholders)
+	var totalCount int
+	countArgs := args
+	err := s.db.QueryRowContext(ctx, countQuery, countArgs...).Scan(&totalCount)
+	if err != nil {
+		return nil, 0, err
+	}
+
+	// Get paginated results
+	offset := (page - 1) * pageSize
+	query := fmt.Sprintf(`
+		SELECT id, user_id, unique_identifier, name, description, file_id, parent_unique_identifier, content,
+		       data_source, source_path, source_type, tags, md5_hash, handwrite_md5, handwrite_inner_name, metadata,
+		       comment_fields, handwrite_fields, comment_handwrite_name, is_summary_group, author, creation_time, last_modified_time
+		FROM summaries
+		WHERE user_id = ? AND id IN (%s)
+		ORDER BY id
+		LIMIT ? OFFSET ?
+	`, placeholders)
+
+	queryArgs := args
+	queryArgs = append(queryArgs, pageSize, offset)
+
+	rows, err := s.db.QueryContext(ctx, query, queryArgs...)
+	if err != nil {
+		return nil, 0, err
+	}
+	defer rows.Close()
+
+	var summaries []Summary
+	for rows.Next() {
+		var sum Summary
+		var creationTimeStr, lastModifiedTimeStr sql.NullString
+
+		err := rows.Scan(&sum.ID, &sum.UserID, &sum.UniqueIdentifier, &sum.Name, &sum.Description, &sum.FileID, &sum.ParentUniqueIdentifier, &sum.Content,
+			&sum.DataSource, &sum.SourcePath, &sum.SourceType, &sum.Tags, &sum.MD5Hash, &sum.HandwriteMD5, &sum.HandwriteInnerName, &sum.Metadata,
+			&sum.CommentFields, &sum.HandwriteFields, &sum.CommentHandwriteName, &sum.IsSummaryGroup, &sum.Author, &creationTimeStr, &lastModifiedTimeStr)
+		if err != nil {
+			return nil, 0, err
+		}
+
+		// Parse datetime fields
+		if creationTimeStr.Valid {
+			if tm, err := time.Parse(time.RFC3339Nano, creationTimeStr.String); err == nil {
+				sum.CreationTime = tm.Unix() * 1000
+			}
+		}
+		if lastModifiedTimeStr.Valid {
+			if tm, err := time.Parse(time.RFC3339Nano, lastModifiedTimeStr.String); err == nil {
+				sum.LastModifiedTime = tm.Unix() * 1000
+			}
+		}
+
+		summaries = append(summaries, sum)
+	}
+
+	return summaries, totalCount, rows.Err()
+}
+
+// GetSummary retrieves a single summary by ID.
+func (s *Store) GetSummary(ctx context.Context, id int64, userID int64) (*Summary, error) {
+	query := `
+		SELECT id, user_id, unique_identifier, name, description, file_id, parent_unique_identifier, content,
+		       data_source, source_path, source_type, tags, md5_hash, handwrite_md5, handwrite_inner_name, metadata,
+		       comment_fields, handwrite_fields, comment_handwrite_name, is_summary_group, author, creation_time, last_modified_time
+		FROM summaries
+		WHERE id = ? AND user_id = ?
+	`
+
+	var sum Summary
+	var creationTimeStr, lastModifiedTimeStr sql.NullString
+
+	err := s.db.QueryRowContext(ctx, query, id, userID).Scan(
+		&sum.ID, &sum.UserID, &sum.UniqueIdentifier, &sum.Name, &sum.Description, &sum.FileID, &sum.ParentUniqueIdentifier, &sum.Content,
+		&sum.DataSource, &sum.SourcePath, &sum.SourceType, &sum.Tags, &sum.MD5Hash, &sum.HandwriteMD5, &sum.HandwriteInnerName, &sum.Metadata,
+		&sum.CommentFields, &sum.HandwriteFields, &sum.CommentHandwriteName, &sum.IsSummaryGroup, &sum.Author, &creationTimeStr, &lastModifiedTimeStr)
+
+	if err == sql.ErrNoRows {
+		return nil, nil
+	}
+	if err != nil {
+		return nil, err
+	}
+
+	// Parse datetime fields
+	if creationTimeStr.Valid {
+		if tm, err := time.Parse(time.RFC3339Nano, creationTimeStr.String); err == nil {
+			sum.CreationTime = tm.Unix() * 1000
+		}
+	}
+	if lastModifiedTimeStr.Valid {
+		if tm, err := time.Parse(time.RFC3339Nano, lastModifiedTimeStr.String); err == nil {
+			sum.LastModifiedTime = tm.Unix() * 1000
+		}
+	}
+
+	return &sum, nil
 }

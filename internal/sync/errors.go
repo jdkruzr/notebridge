@@ -89,3 +89,48 @@ func ErrNameCollision() *SyncError {
 		HTTPStatus: http.StatusConflict,
 	}
 }
+
+// ErrTaskGroupNotFound returns an E0328 error (task group not found).
+func ErrTaskGroupNotFound() *SyncError {
+	return &SyncError{
+		Code:       "E0328",
+		Message:    "task group not found",
+		HTTPStatus: http.StatusNotFound,
+	}
+}
+
+// ErrTaskNotFound returns an E0329 error (task not found).
+func ErrTaskNotFound() *SyncError {
+	return &SyncError{
+		Code:       "E0329",
+		Message:    "task not found",
+		HTTPStatus: http.StatusNotFound,
+	}
+}
+
+// ErrUniqueIDExists returns an E0338 error (summary unique ID already exists).
+func ErrUniqueIDExists() *SyncError {
+	return &SyncError{
+		Code:       "E0338",
+		Message:    "summary unique ID already exists",
+		HTTPStatus: http.StatusConflict,
+	}
+}
+
+// ErrSummaryGroupNotFound returns an E0339 error (summary group not found).
+func ErrSummaryGroupNotFound() *SyncError {
+	return &SyncError{
+		Code:       "E0339",
+		Message:    "summary group not found",
+		HTTPStatus: http.StatusNotFound,
+	}
+}
+
+// ErrSummaryNotFound returns an E0340 error (summary not found).
+func ErrSummaryNotFound() *SyncError {
+	return &SyncError{
+		Code:       "E0340",
+		Message:    "summary not found",
+		HTTPStatus: http.StatusNotFound,
+	}
+}

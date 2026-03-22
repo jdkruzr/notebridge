@@ -143,6 +143,7 @@ CREATE TABLE IF NOT EXISTS schedule_groups (
 	title TEXT,
 	last_modified DATETIME,
 	create_time DATETIME,
+	updated_at DATETIME,
 	FOREIGN KEY (user_id) REFERENCES users(id)
 );
 
@@ -154,12 +155,23 @@ CREATE TABLE IF NOT EXISTS schedule_tasks (
 	detail TEXT,
 	status TEXT,
 	importance TEXT,
+	recurrence TEXT,
+	links TEXT,
+	is_reminder_on TEXT,
 	due_time DATETIME,
 	completed_time DATETIME,
-	recurrence TEXT,
-	is_reminder_on TEXT,
-	links TEXT,
+	last_modified DATETIME,
+	sort INTEGER,
+	sort_completed INTEGER,
+	planer_sort INTEGER,
+	sort_time INTEGER,
+	planer_sort_time INTEGER,
+	all_sort INTEGER,
+	all_sort_completed INTEGER,
+	all_sort_time INTEGER,
+	recurrence_id TEXT,
 	is_deleted TEXT NOT NULL DEFAULT 'N',
+	updated_at DATETIME,
 	FOREIGN KEY (user_id) REFERENCES users(id),
 	FOREIGN KEY (task_list_id) REFERENCES schedule_groups(task_list_id)
 );
@@ -179,13 +191,17 @@ CREATE TABLE IF NOT EXISTS summaries (
 	source_type TEXT,
 	tags TEXT,
 	md5_hash TEXT,
+	handwrite_md5 TEXT,
+	handwrite_inner_name TEXT,
 	metadata TEXT,
 	comment_fields TEXT,
 	handwrite_fields TEXT,
+	comment_handwrite_name TEXT,
 	is_summary_group TEXT,
 	author TEXT,
 	creation_time DATETIME,
 	last_modified_time DATETIME,
+	updated_at DATETIME,
 	FOREIGN KEY (user_id) REFERENCES users(id),
 	FOREIGN KEY (file_id) REFERENCES files(id)
 );
@@ -255,6 +271,8 @@ END;
 -- Indexes matching opennotecloud
 CREATE INDEX IF NOT EXISTS idx_files_user_dir ON files(user_id, directory_id);
 CREATE INDEX IF NOT EXISTS idx_summaries_user ON summaries(user_id, is_summary_group);
+CREATE INDEX IF NOT EXISTS idx_schedule_tasks_user ON schedule_tasks(user_id, updated_at);
+CREATE INDEX IF NOT EXISTS idx_schedule_groups_user ON schedule_groups(user_id);
 `
 
 	_, err := db.Exec(schema)
