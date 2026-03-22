@@ -158,12 +158,18 @@ func (b *Backend) PutCalendarObject(ctx context.Context, urlPath string, cal *ic
 		if task.TaskID == "" {
 			task.TaskID = taskID
 		}
+		// Set default task list ID if not provided
+		if !task.TaskListID.Valid {
+			task.TaskListID = taskstore.SqlStr("default")
+		}
 		if err := b.store.Create(ctx, task); err != nil {
 			return nil, err
 		}
 	} else {
 		// Update existing
 		task.TaskID = existing.TaskID
+		// Preserve existing task_list_id during update
+		task.TaskListID = existing.TaskListID
 		if err := b.store.Update(ctx, task); err != nil {
 			return nil, err
 		}
