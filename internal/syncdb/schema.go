@@ -203,14 +203,17 @@ CREATE TABLE IF NOT EXISTS notes (
 
 CREATE TABLE IF NOT EXISTS jobs (
 	id INTEGER PRIMARY KEY AUTOINCREMENT,
-	note_path TEXT NOT NULL,
+	note_path TEXT NOT NULL UNIQUE,
 	status TEXT,
 	skip_reason TEXT,
 	ocr_source TEXT,
 	attempts INTEGER DEFAULT 0,
+	last_error TEXT,
 	requeue_after DATETIME,
 	created_at DATETIME,
 	updated_at DATETIME,
+	started_at DATETIME,
+	finished_at DATETIME,
 	FOREIGN KEY (note_path) REFERENCES notes(path)
 );
 

@@ -124,17 +124,18 @@ func (s *Store) Enqueue(ctx context.Context, path string, opts ...EnqueueOption)
 	}
 
 	now := time.Now()
+	nowStr := now.Format(time.RFC3339Nano)
 	var requeueAfter any
 	if cfg.requeueAfter != nil {
-		requeueAfter = now.Add(*cfg.requeueAfter).Unix()
+		requeueAfter = now.Add(*cfg.requeueAfter).Format(time.RFC3339Nano)
 	}
 
 	_, err := s.db.ExecContext(ctx, `
-		INSERT INTO jobs (note_path, status, created_at, requeue_after)
-		VALUES (?, ?, ?, ?)
-		ON CONFLICT(note_path) DO UPDATE SET status=excluded.status, created_at=excluded.created_at, requeue_after=excluded.requeue_after
+		INSERT INTO jobs (note_path, status, created_at, updated_at, requeue_after)
+		VALUES (?, ?, ?, ?, ?)
+		ON CONFLICT(note_path) DO UPDATE SET status=excluded.status, created_at=excluded.created_at, updated_at=excluded.updated_at, requeue_after=excluded.requeue_after
 		WHERE status IN (?, ?, ?)`,
-		path, StatusPending, now.Unix(), requeueAfter,
+		path, StatusPending, nowStr, nowStr, requeueAfter,
 		StatusDone, StatusFailed, StatusSkipped,
 	)
 	if err != nil {
@@ -144,12 +145,13 @@ func (s *Store) Enqueue(ctx context.Context, path string, opts ...EnqueueOption)
 }
 
 func (s *Store) Skip(ctx context.Context, path, reason string) error {
-	now := time.Now().Unix()
+	now := time.Now()
+	nowStr := now.Format(time.RFC3339Nano)
 	_, err := s.db.ExecContext(ctx, `
-		INSERT INTO jobs (note_path, status, skip_reason, created_at)
-		VALUES (?, ?, ?, ?)
-		ON CONFLICT(note_path) DO UPDATE SET status=excluded.status, skip_reason=excluded.skip_reason`,
-		path, StatusSkipped, reason, now,
+		INSERT INTO jobs (note_path, status, skip_reason, created_at, updated_at)
+		VALUES (?, ?, ?, ?, ?)
+		ON CONFLICT(note_path) DO UPDATE SET status=excluded.status, skip_reason=excluded.skip_reason, updated_at=excluded.updated_at`,
+		path, StatusSkipped, reason, nowStr, nowStr,
 	)
 	return err
 }
@@ -164,31 +166,38 @@ func (s *Store) Unskip(ctx context.Context, path string) error {
 
 func (s *Store) GetJob(ctx context.Context, path string) (*Job, error) {
 	var j Job
-	var startedAt, finishedAt, createdAt, requeueAfter sql.NullInt64
+	var startedAtStr, finishedAtStr, createdAtStr, requeueAfterStr sql.NullString
 	err := s.db.QueryRowContext(ctx, `
 		SELECT id, note_path, status, COALESCE(skip_reason,''), attempts, COALESCE(last_error,''),
 		       created_at, started_at, finished_at, requeue_after
 		FROM jobs WHERE note_path=? LIMIT 1`, path).
 		Scan(&j.ID, &j.NotePath, &j.Status, &j.SkipReason, &j.Attempts, &j.LastError,
-			&createdAt, &startedAt, &finishedAt, &requeueAfter)
+			&createdAtStr, &startedAtStr, &finishedAtStr, &requeueAfterStr)
 	if errors.Is(err, sql.ErrNoRows) {
 		return nil, nil
 	}
 	if err != nil {
 		return nil, fmt.Errorf("GetJob: %w", err)
 	}
-	if createdAt.Valid {
-		j.QueuedAt = time.Unix(createdAt.Int64, 0)
+	if createdAtStr.Valid {
+		if t, err := time.Parse(time.RFC3339Nano, createdAtStr.String); err == nil {
+			j.QueuedAt = t
+		}
 	}
-	if startedAt.Valid {
-		j.StartedAt = time.Unix(startedAt.Int64, 0)
+	if startedAtStr.Valid {
+		if t, err := time.Parse(time.RFC3339Nano, startedAtStr.String); err == nil {
+			j.StartedAt = t
+		}
 	}
-	if finishedAt.Valid {
-		j.FinishedAt = time.Unix(finishedAt.Int64, 0)
+	if finishedAtStr.Valid {
+		if t, err := time.Parse(time.RFC3339Nano, finishedAtStr.String); err == nil {
+			j.FinishedAt = t
+		}
 	}
-	if requeueAfter.Valid {
-		t := time.Unix(requeueAfter.Int64, 0)
-		j.RequeueAfter = &t
+	if requeueAfterStr.Valid {
+		if t, err := time.Parse(time.RFC3339Nano, requeueAfterStr.String); err == nil {
+			j.RequeueAfter = &t
+		}
 	}
 	return &j, nil
 }
@@ -197,13 +206,13 @@ func (s *Store) GetJob(ctx context.Context, path string) (*Job, error) {
 // Returns nil, nil if no jobs are pending.
 // Skips jobs whose requeue_after is in the future.
 func (s *Store) claimNext(ctx context.Context) (*Job, error) {
-	now := time.Now().Unix()
+	now := time.Now().Format(time.RFC3339Nano)
 	result, err := s.db.ExecContext(ctx, `
-		UPDATE jobs SET status=?, started_at=?
+		UPDATE jobs SET status=?, started_at=?, updated_at=?
 		WHERE id = (SELECT id FROM jobs WHERE status=?
 		    AND (requeue_after IS NULL OR requeue_after <= ?)
 		    ORDER BY created_at ASC LIMIT 1)`,
-		StatusInProgress, now, StatusPending, now,
+		StatusInProgress, now, now, StatusPending, now,
 	)
 	if err != nil {
 		return nil, fmt.Errorf("claimNext: %w", err)
@@ -230,10 +239,11 @@ func (s *Store) markDone(ctx context.Context, jobID int64, errMsg string) {
 	if errMsg != "" {
 		status = StatusFailed
 	}
+	now := time.Now().Format(time.RFC3339Nano)
 	_, err := s.db.ExecContext(ctx, `
-		UPDATE jobs SET status=?, last_error=?, finished_at=?, attempts=attempts+1
+		UPDATE jobs SET status=?, last_error=?, finished_at=?, updated_at=?, attempts=attempts+1
 		WHERE id=?`,
-		status, errMsg, time.Now().Unix(), jobID,
+		status, errMsg, now, now, jobID,
 	)
 	if err != nil {
 		s.logger.Error("failed to mark job done", "job_id", jobID, "error", err)
@@ -244,10 +254,12 @@ func (s *Store) markDone(ctx context.Context, jobID int64, errMsg string) {
 // Increments attempts counter. Only operates on in_progress jobs to prevent
 // accidental status regression if the job was already marked done/failed.
 func (s *Store) Requeue(ctx context.Context, jobID int64, delay time.Duration) error {
-	requeueAt := time.Now().Add(delay).Unix()
+	now := time.Now()
+	requeueAt := now.Add(delay).Format(time.RFC3339Nano)
+	updatedAt := now.Format(time.RFC3339Nano)
 	result, err := s.db.ExecContext(ctx, `
-		UPDATE jobs SET status = ?, requeue_after = ?, attempts = attempts + 1
-		WHERE id = ? AND status = ?`, StatusPending, requeueAt, jobID, StatusInProgress)
+		UPDATE jobs SET status = ?, requeue_after = ?, updated_at = ?, attempts = attempts + 1
+		WHERE id = ? AND status = ?`, StatusPending, requeueAt, updatedAt, jobID, StatusInProgress)
 	if err != nil {
 		return err
 	}

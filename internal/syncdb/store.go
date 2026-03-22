@@ -807,6 +807,7 @@ func (s *Store) GetFileByStorageKey(ctx context.Context, userID int64, storageKe
 
 	var entry FileEntry
 	var isFolder, isActive string
+	var createdAtStr, updatedAtStr string
 
 	err := s.db.QueryRowContext(ctx, query, userID, storageKey).Scan(
 		&entry.ID,
@@ -819,8 +820,8 @@ func (s *Store) GetFileByStorageKey(ctx context.Context, userID int64, storageKe
 		&entry.Size,
 		&isFolder,
 		&isActive,
-		&entry.CreatedAt,
-		&entry.UpdatedAt,
+		&createdAtStr,
+		&updatedAtStr,
 	)
 
 	if err == sql.ErrNoRows {
@@ -832,6 +833,8 @@ func (s *Store) GetFileByStorageKey(ctx context.Context, userID int64, storageKe
 
 	entry.IsFolder = isFolder == "Y"
 	entry.IsActive = isActive == "Y"
+	entry.CreatedAt, _ = time.Parse(time.RFC3339Nano, createdAtStr)
+	entry.UpdatedAt, _ = time.Parse(time.RFC3339Nano, updatedAtStr)
 
 	return &entry, nil
 }

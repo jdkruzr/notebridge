@@ -170,8 +170,13 @@ func main() {
 
 	proc := processor.New(db, workerCfg)
 
+	// Create a separate long-lived context for processor and pipeline
+	// (bootstrap ctx expires after 10 seconds, but these need to run indefinitely)
+	appCtx, appCancel := context.WithCancel(context.Background())
+	defer appCancel()
+
 	// Start processor
-	if err := proc.Start(ctx); err != nil {
+	if err := proc.Start(appCtx); err != nil {
 		logger.Error("failed to start processor", "error", err)
 		os.Exit(1)
 	}
@@ -185,7 +190,7 @@ func main() {
 		EventBus:  eventBus,
 		Logger:    logger,
 	})
-	pipe.Start(ctx)
+	pipe.Start(appCtx)
 	defer pipe.Close()
 
 	// Create HTTP server
