@@ -3,6 +3,7 @@ package caldav
 import (
 	"context"
 	"fmt"
+	"log/slog"
 	"path"
 	"strings"
 
@@ -179,7 +180,7 @@ func (b *Backend) PutCalendarObject(ctx context.Context, urlPath string, cal *ic
 	if b.notifier != nil {
 		if err := b.notifier.Notify(ctx); err != nil {
 			// Log warning but don't fail the operation (graceful degradation)
-			// Logging will be wired in Phase 6
+			slog.Warn("failed to notify device of task sync", "error", err, "task_id", task.TaskID)
 		}
 	}
 
@@ -204,7 +205,7 @@ func (b *Backend) DeleteCalendarObject(ctx context.Context, urlPath string) erro
 	if b.notifier != nil {
 		if err := b.notifier.Notify(ctx); err != nil {
 			// Log warning but don't fail the operation (graceful degradation)
-			// Logging will be wired in Phase 6
+			slog.Warn("failed to notify device of task deletion", "error", err, "task_id", taskID)
 		}
 	}
 

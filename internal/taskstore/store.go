@@ -105,7 +105,7 @@ func (s *Store) Update(ctx context.Context, t *Task) error {
 	now := time.Now().UnixMilli()
 	t.LastModified = sql.NullInt64{Int64: now, Valid: true}
 
-	_, err := s.db.ExecContext(ctx, `UPDATE schedule_tasks SET
+	result, err := s.db.ExecContext(ctx, `UPDATE schedule_tasks SET
 		title = ?, detail = ?, status = ?, importance = ?, due_time = ?,
 		last_modified = ?, recurrence = ?
 		WHERE task_id = ? AND user_id = ?`,
@@ -114,6 +114,13 @@ func (s *Store) Update(ctx context.Context, t *Task) error {
 		t.TaskID, s.userID)
 	if err != nil {
 		return fmt.Errorf("update task %s: %w", t.TaskID, err)
+	}
+	rowsAffected, err := result.RowsAffected()
+	if err != nil {
+		return fmt.Errorf("update task %s: get rows affected: %w", t.TaskID, err)
+	}
+	if rowsAffected == 0 {
+		return fmt.Errorf("update task %s: %w", t.TaskID, ErrNotFound)
 	}
 	return nil
 }
@@ -136,12 +143,19 @@ func (s *Store) MaxLastModified(ctx context.Context) (int64, error) {
 
 func (s *Store) Delete(ctx context.Context, taskID string) error {
 	now := time.Now().UnixMilli()
-	_, err := s.db.ExecContext(ctx, `UPDATE schedule_tasks SET
+	result, err := s.db.ExecContext(ctx, `UPDATE schedule_tasks SET
 		is_deleted = 'Y', last_modified = ?
 		WHERE task_id = ? AND user_id = ?`,
 		now, taskID, s.userID)
 	if err != nil {
 		return fmt.Errorf("delete task %s: %w", taskID, err)
+	}
+	rowsAffected, err := result.RowsAffected()
+	if err != nil {
+		return fmt.Errorf("delete task %s: get rows affected: %w", taskID, err)
+	}
+	if rowsAffected == 0 {
+		return fmt.Errorf("delete task %s: %w", taskID, ErrNotFound)
 	}
 	return nil
 }

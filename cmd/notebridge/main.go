@@ -214,10 +214,19 @@ func main() {
 	webMux.Handle("/caldav/", caldavHandler)
 	webMux.HandleFunc("GET /health", handleHealth)
 
+	// Create web server with graceful shutdown support
+	webServer := &http.Server{
+		Addr:         cfg.WebListenAddr,
+		Handler:      webMux,
+		ReadTimeout:  15 * time.Second,
+		WriteTimeout: 15 * time.Second,
+		IdleTimeout:  60 * time.Second,
+	}
+
 	// Start web server in a goroutine
 	go func() {
 		logger.Info("starting web server", "addr", cfg.WebListenAddr)
-		if err := http.ListenAndServe(cfg.WebListenAddr, webMux); err != nil && err != http.ErrServerClosed {
+		if err := webServer.ListenAndServe(); err != nil && err != http.ErrServerClosed {
 			logger.Error("web server error", "error", err)
 		}
 	}()
@@ -250,12 +259,18 @@ func main() {
 	shutdownCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 
+	// Shutdown both web server (CalDAV) and sync server
+	if err := webServer.Shutdown(shutdownCtx); err != nil {
+		logger.Error("failed to shutdown web server", "error", err)
+		os.Exit(1)
+	}
+
 	if err := httpServer.Shutdown(shutdownCtx); err != nil {
 		logger.Error("failed to shutdown http server", "error", err)
 		os.Exit(1)
 	}
 
-	logger.Info("sync server stopped gracefully")
+	logger.Info("servers stopped gracefully")
 }
 
 // storageKeyFromPath converts an absolute blob path to the storage key.

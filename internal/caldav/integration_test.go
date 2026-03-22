@@ -83,11 +83,11 @@ func TestIntegration_AC7_2_CalDAVVTODOSyncsToTablet(t *testing.T) {
 	store := taskstore.New(db, userID)
 	eventBus := events.NewEventBus()
 
-	// Track notifications
-	notificationReceived := false
+	// Track notifications via channel
+	notificationChan := make(chan struct{})
 	eventBus.Subscribe(events.FileModified, func(event events.Event) {
 		if event.UserID == userID {
-			notificationReceived = true
+			notificationChan <- struct{}{}
 		}
 	})
 
@@ -114,8 +114,10 @@ func TestIntegration_AC7_2_CalDAVVTODOSyncsToTablet(t *testing.T) {
 	}
 
 	// AC7.2 Part 2: Verify event bus was notified (would trigger Socket.IO push to tablet)
-	time.Sleep(10 * time.Millisecond) // Give goroutines time to run
-	if !notificationReceived {
+	select {
+	case <-notificationChan:
+		// Notification received as expected
+	case <-time.After(100 * time.Millisecond):
 		t.Error("Event bus was not notified of task creation")
 	}
 
