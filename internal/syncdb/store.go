@@ -791,34 +791,8 @@ func (s *Store) DeleteChunkRecords(ctx context.Context, uploadID string) error {
 	return err
 }
 
-// === Test Helper Methods ===
-
-// ExpireNonce manually expires a nonce for testing purposes.
-// This is used to test that expired signed URLs are rejected.
-func (s *Store) ExpireNonce(ctx context.Context, nonce string) error {
-	query := `
-		UPDATE url_nonces
-		SET expires_at = ?
-		WHERE nonce = ?
-	`
-
-	// Set expiry to 1 hour in the past
-	expiryTime := time.Now().Add(-time.Hour)
-	_, err := s.db.ExecContext(ctx, query, expiryTime, nonce)
-	return err
-}
-
-// ExpireLock manually expires a user's sync lock for testing purposes.
-// This is used to test that expired locks can be overwritten.
-func (s *Store) ExpireLock(ctx context.Context, userID int64) error {
-	query := `
-		UPDATE sync_locks
-		SET expires_at = ?
-		WHERE user_id = ?
-	`
-
-	// Set expiry to 1 hour in the past
-	expiryTime := time.Now().Add(-time.Hour)
-	_, err := s.db.ExecContext(ctx, query, expiryTime, userID)
-	return err
+// DB returns the underlying *sql.DB for direct SQL access in tests.
+// This is useful for test helpers that need to manipulate the database directly.
+func (s *Store) DB() *sql.DB {
+	return s.db
 }

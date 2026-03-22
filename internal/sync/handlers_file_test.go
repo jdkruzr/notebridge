@@ -1073,7 +1073,9 @@ func TestAC210LockExpiryAndRefresh(t *testing.T) {
 	resp.Body.Close()
 
 	// Step 2: Manually expire the lock in the database
-	if err := store.ExpireLock(ctx, user.ID); err != nil {
+	expiryTime := time.Now().Add(-time.Hour)
+	query := `UPDATE sync_locks SET expires_at = ? WHERE user_id = ?`
+	if _, err := store.DB().ExecContext(ctx, query, expiryTime, user.ID); err != nil {
 		t.Logf("warning: could not expire lock manually: %v", err)
 		// Continue anyway - test should still work with timing
 	}

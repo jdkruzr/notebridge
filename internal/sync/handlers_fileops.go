@@ -652,9 +652,9 @@ func (s *Server) recursiveFolderCopy(ctx context.Context, userID int64, srcFolde
 			if err != nil {
 				return err
 			}
-			defer srcReader.Close()
 
 			_, md5hex, err := s.blobStore.Put(ctx, newStorageKey, srcReader)
+			srcReader.Close()
 			if err != nil {
 				return err
 			}
