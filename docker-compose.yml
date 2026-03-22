@@ -1,0 +1,20 @@
+services:
+  notebridge:
+    build: .
+    container_name: notebridge
+    restart: unless-stopped
+    ports:
+      - "${NB_WEB_PORT:-8443}:8443"
+      - "${NB_SYNC_PORT:-19071}:19071"
+    volumes:
+      - ${NB_DATA_DIR:-/data/notebridge}/notebridge.db:/data/notebridge.db
+      - ${NB_DATA_DIR:-/data/notebridge}/storage:/data/storage
+      - ${NB_DATA_DIR:-/data/notebridge}/backups:/data/backups
+      - ${NB_DATA_DIR:-/data/notebridge}/cache:/data/cache
+    environment:
+      - NB_DB_PATH=/data/notebridge.db
+      - NB_STORAGE_PATH=/data/storage
+      - NB_BACKUP_PATH=/data/backups
+      - NB_CACHE_PATH=/data/cache
+    env_file:
+      - .env
