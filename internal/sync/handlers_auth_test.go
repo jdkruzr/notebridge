@@ -13,6 +13,7 @@ import (
 	"testing"
 
 	"github.com/sysop/notebridge/internal/blob"
+	"github.com/sysop/notebridge/internal/events"
 	"github.com/sysop/notebridge/internal/syncdb"
 )
 
@@ -54,7 +55,10 @@ func setupTestServer(t *testing.T) (*httptest.Server, *syncdb.Store) {
 	blobStore := setupTestBlobStore(t)
 	chunkStore := setupTestChunkStore(t)
 
-	server := NewServer(store, authService, blobStore, chunkStore, snowflake, logger)
+	// Create event bus
+	eventBus := events.NewEventBus()
+
+	server := NewServer(store, authService, blobStore, chunkStore, snowflake, logger, eventBus)
 
 	// Create httptest.Server with the handler
 	httpServer := httptest.NewServer(server.Handler())

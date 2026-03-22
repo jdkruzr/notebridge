@@ -6,6 +6,7 @@ import (
 	"path"
 	"strconv"
 
+	"github.com/sysop/notebridge/internal/events"
 	"github.com/sysop/notebridge/internal/syncdb"
 )
 
@@ -84,6 +85,14 @@ func (s *Server) handleDeleteV3(w http.ResponseWriter, r *http.Request) {
 		}
 		// Note: Blob deletion is implicit - we mark as deleted in DB but don't physically delete
 		// This allows recovery from the recycle_files table if needed
+
+		// Publish FileDeleted event for each deleted file
+		s.eventBus.Publish(r.Context(), events.Event{
+			Type:   events.FileDeleted,
+			FileID: id,
+			UserID: userID,
+			Path:   file.StorageKey,
+		})
 	}
 
 	// Refresh sync lock
@@ -354,6 +363,14 @@ func (s *Server) handleMoveV3(w http.ResponseWriter, r *http.Request) {
 		updatedFile = srcFile // Fallback
 	}
 
+	// Publish FileModified event
+	s.eventBus.Publish(r.Context(), events.Event{
+		Type:   events.FileModified,
+		FileID: fileID,
+		UserID: userID,
+		Path:   updatedFile.StorageKey,
+	})
+
 	entry := map[string]interface{}{
 		"tag":             "file",
 		"id":              updatedFile.ID,
@@ -549,6 +566,14 @@ func (s *Server) handleCopyV3(w http.ResponseWriter, r *http.Request) {
 	if newEntry == nil {
 		newEntry = srcFile // Fallback
 	}
+
+	// Publish FileModified event
+	s.eventBus.Publish(r.Context(), events.Event{
+		Type:   events.FileModified,
+		FileID: newFileID,
+		UserID: userID,
+		Path:   newEntry.StorageKey,
+	})
 
 	entry := map[string]interface{}{
 		"tag":             "file",

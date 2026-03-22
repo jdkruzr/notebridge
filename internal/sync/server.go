@@ -5,6 +5,7 @@ import (
 	"net/http"
 
 	"github.com/sysop/notebridge/internal/blob"
+	"github.com/sysop/notebridge/internal/events"
 	"github.com/sysop/notebridge/internal/syncdb"
 )
 
@@ -16,6 +17,7 @@ type Server struct {
 	chunkStore  *blob.ChunkStore
 	snowflake   *SnowflakeGenerator
 	logger      *slog.Logger
+	eventBus    *events.EventBus
 }
 
 // NewServer creates a new Server instance.
@@ -26,6 +28,7 @@ func NewServer(
 	chunkStore *blob.ChunkStore,
 	snowflake *SnowflakeGenerator,
 	logger *slog.Logger,
+	eventBus *events.EventBus,
 ) *Server {
 	return &Server{
 		store:       store,
@@ -34,6 +37,7 @@ func NewServer(
 		chunkStore:  chunkStore,
 		snowflake:   snowflake,
 		logger:      logger,
+		eventBus:    eventBus,
 	}
 }
 

@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/sysop/notebridge/internal/events"
 	"github.com/sysop/notebridge/internal/syncdb"
 )
 
@@ -326,6 +327,14 @@ func (s *Server) handleUploadFinish(w http.ResponseWriter, r *http.Request) {
 		s.logger.Error("failed to refresh sync lock", "error", err)
 		// Not fatal, continue
 	}
+
+	// Publish FileUploaded event
+	s.eventBus.Publish(r.Context(), events.Event{
+		Type:   events.FileUploaded,
+		FileID: fileID,
+		UserID: userID,
+		Path:   storageKey,
+	})
 
 	// Return success with file metadata
 	jsonSuccess(w, map[string]interface{}{

@@ -11,6 +11,7 @@ import (
 
 	"github.com/sysop/notebridge/internal/blob"
 	"github.com/sysop/notebridge/internal/config"
+	"github.com/sysop/notebridge/internal/events"
 	"github.com/sysop/notebridge/internal/sync"
 	"github.com/sysop/notebridge/internal/syncdb"
 )
@@ -78,8 +79,11 @@ func main() {
 	// Create ChunkStore (for temporary chunk storage during multipart uploads)
 	chunkStore := blob.NewChunkStore(cfg.ChunkStorePath)
 
+	// Create EventBus for file change events
+	eventBus := events.NewEventBus()
+
 	// Create sync.Server
-	server := sync.NewServer(store, authService, blobStore, chunkStore, snowflake, logger)
+	server := sync.NewServer(store, authService, blobStore, chunkStore, snowflake, logger, eventBus)
 
 	// Create HTTP server
 	httpServer := &http.Server{
