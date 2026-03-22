@@ -3,6 +3,7 @@ package config
 import (
 	"fmt"
 	"os"
+	"strconv"
 )
 
 // Config holds all NoteBridge configuration loaded from environment variables.
@@ -28,11 +29,35 @@ type Config struct {
 	// Authentication
 	UserEmail        string
 	UserPasswordHash string
+
+	// OCR Pipeline
+	OCREnabled     bool
+	OCRAPIFormat   string
+	OCRAPIURL      string
+	OCRAPIKey      string
+	OCRModel       string
+	OCRConcurrency int
+	OCRMaxFileMB   int
 }
 
 // Load reads configuration from environment variables with defaults.
 // Returns an error if required fields are missing.
 func Load() (*Config, error) {
+	ocrEnabledStr := envOrDefault("NB_OCR_ENABLED", "false")
+	ocrEnabled := ocrEnabledStr == "true" || ocrEnabledStr == "1"
+
+	ocrConcurrencyStr := envOrDefault("NB_OCR_CONCURRENCY", "1")
+	ocrConcurrency := 1
+	if n, err := strconv.Atoi(ocrConcurrencyStr); err == nil && n > 0 {
+		ocrConcurrency = n
+	}
+
+	ocrMaxFileMBStr := envOrDefault("NB_OCR_MAX_FILE_MB", "50")
+	ocrMaxFileMB := 50
+	if n, err := strconv.Atoi(ocrMaxFileMBStr); err == nil && n > 0 {
+		ocrMaxFileMB = n
+	}
+
 	cfg := &Config{
 		DBPath:           envOrDefault("NB_DB_PATH", "/data/notebridge.db"),
 		StoragePath:      envOrDefault("NB_STORAGE_PATH", "/data/storage"),
@@ -46,6 +71,13 @@ func Load() (*Config, error) {
 		LogFormat:        envOrDefault("NB_LOG_FORMAT", "json"),
 		UserEmail:        os.Getenv("NB_USER_EMAIL"),
 		UserPasswordHash: os.Getenv("NB_USER_PASSWORD_HASH"),
+		OCREnabled:       ocrEnabled,
+		OCRAPIFormat:     envOrDefault("NB_OCR_FORMAT", "anthropic"),
+		OCRAPIURL:        os.Getenv("NB_OCR_API_URL"),
+		OCRAPIKey:        os.Getenv("NB_OCR_API_KEY"),
+		OCRModel:         os.Getenv("NB_OCR_MODEL"),
+		OCRConcurrency:   ocrConcurrency,
+		OCRMaxFileMB:     ocrMaxFileMB,
 	}
 
 	// Validate required fields

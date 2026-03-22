@@ -795,3 +795,43 @@ func (s *Store) DeleteChunkRecords(ctx context.Context, uploadID string) error {
 func (s *Store) DB() *sql.DB {
 	return s.db
 }
+
+// GetFileByStorageKey retrieves a file entry by storage key.
+// Returns nil if not found (not an error).
+func (s *Store) GetFileByStorageKey(ctx context.Context, userID int64, storageKey string) (*FileEntry, error) {
+	query := `
+		SELECT id, user_id, directory_id, file_name, inner_name, storage_key, md5, size, is_folder, is_active, created_at, updated_at
+		FROM files
+		WHERE user_id = ? AND storage_key = ? AND is_active = 'Y'
+	`
+
+	var entry FileEntry
+	var isFolder, isActive string
+
+	err := s.db.QueryRowContext(ctx, query, userID, storageKey).Scan(
+		&entry.ID,
+		&entry.UserID,
+		&entry.DirectoryID,
+		&entry.FileName,
+		&entry.InnerName,
+		&entry.StorageKey,
+		&entry.MD5,
+		&entry.Size,
+		&isFolder,
+		&isActive,
+		&entry.CreatedAt,
+		&entry.UpdatedAt,
+	)
+
+	if err == sql.ErrNoRows {
+		return nil, nil // Not found, not an error
+	}
+	if err != nil {
+		return nil, err
+	}
+
+	entry.IsFolder = isFolder == "Y"
+	entry.IsActive = isActive == "Y"
+
+	return &entry, nil
+}
