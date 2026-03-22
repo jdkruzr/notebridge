@@ -22,6 +22,74 @@ var (
 	ErrUniqueIDExists        = errors.New("summary unique ID already exists")
 )
 
+// Allowed field names for partial updates to prevent SQL injection
+var (
+	// Schedule group fields
+	scheduleGroupAllowedFields = map[string]bool{
+		"title":           true,
+		"last_modified":   true,
+		"create_time":     true,
+	}
+
+	// Schedule task fields
+	scheduleTaskAllowedFields = map[string]bool{
+		"title":               true,
+		"detail":              true,
+		"status":              true,
+		"importance":          true,
+		"recurrence":          true,
+		"links":               true,
+		"is_reminder_on":      true,
+		"due_time":            true,
+		"completed_time":      true,
+		"last_modified":       true,
+		"sort":                true,
+		"sort_completed":      true,
+		"planer_sort":         true,
+		"sort_time":           true,
+		"planer_sort_time":    true,
+		"all_sort":            true,
+		"all_sort_completed":  true,
+		"all_sort_time":       true,
+		"recurrence_id":       true,
+	}
+
+	// Summary fields
+	summaryAllowedFields = map[string]bool{
+		"name":                      true,
+		"description":               true,
+		"md5_hash":                  true,
+		"handwrite_md5":             true,
+		"handwrite_inner_name":      true,
+		"metadata":                  true,
+		"content":                   true,
+		"data_source":               true,
+		"source_path":               true,
+		"source_type":               true,
+		"tags":                      true,
+		"file_id":                   true,
+		"parent_unique_identifier":  true,
+		"comment_fields":            true,
+		"handwrite_fields":          true,
+		"comment_handwrite_name":    true,
+		"author":                    true,
+		"creation_time":             true,
+		"last_modified_time":        true,
+	}
+)
+
+// validateAndFilterFields validates field names against allowlist and returns filtered updates
+func validateAndFilterFields(updates map[string]interface{}, allowedFields map[string]bool) (map[string]interface{}, error) {
+	filtered := make(map[string]interface{})
+	for key, value := range updates {
+		if !allowedFields[key] {
+			return nil, fmt.Errorf("invalid field name: %s", key)
+		}
+		filtered[key] = value
+	}
+	return filtered, nil
+}
+
 // Store is the data access layer for auth operations.
 type Store struct {
 	db *sql.DB
@@ -73,28 +141,28 @@ type ScheduleGroup struct {
 
 // ScheduleTask represents a single task.
 type ScheduleTask struct {
-	TaskID           string
-	UserID           int64
-	TaskListID       string
-	Title            string
-	Detail           string
-	Status           string
-	Importance       string
-	Recurrence       string
-	Links            string
-	IsReminderOn     string
-	DueTime          int64
-	CompletedTime    int64
-	LastModified     int64
-	Sort             int64
-	SortCompleted    int64
-	PlanerSort       int64
-	SortTime         int64
-	PlanerSortTime   int64
-	AllSort          int64
-	AllSortCompleted int64
-	AllSortTime      int64
-	RecurrenceID     string
+	TaskID           string `json:"taskId"`
+	UserID           int64  `json:"userId"`
+	TaskListID       string `json:"taskListId"`
+	Title            string `json:"title"`
+	Detail           string `json:"detail"`
+	Status           string `json:"status"`
+	Importance       string `json:"importance"`
+	Recurrence       string `json:"recurrence"`
+	Links            string `json:"links"`
+	IsReminderOn     string `json:"isReminderOn"`
+	DueTime          int64  `json:"dueTime"`
+	CompletedTime    int64  `json:"completedTime"`
+	LastModified     int64  `json:"lastModified"`
+	Sort             int64  `json:"sort"`
+	SortCompleted    int64  `json:"sortCompleted"`
+	PlanerSort       int64  `json:"planerSort"`
+	SortTime         int64  `json:"sortTime"`
+	PlanerSortTime   int64  `json:"planerSortTime"`
+	AllSort          int64  `json:"allSort"`
+	AllSortCompleted int64  `json:"allSortCompleted"`
+	AllSortTime      int64  `json:"allSortTime"`
+	RecurrenceID     string `json:"recurrenceId"`
 }
 
 // TaskUpdate represents partial updates for a task.
@@ -997,10 +1065,16 @@ func (s *Store) UpsertScheduleGroup(ctx context.Context, g *ScheduleGroup) error
 
 // UpdateScheduleGroup partially updates a schedule group.
 func (s *Store) UpdateScheduleGroup(ctx context.Context, taskListID string, userID int64, updates map[string]interface{}) error {
+	// Validate field names against allowlist
+	validatedUpdates, err := validateAndFilterFields(updates, scheduleGroupAllowedFields)
+	if err != nil {
+		return err
+	}
+
 	// Check if group exists
 	query := `SELECT 1 FROM schedule_groups WHERE task_list_id = ? AND user_id = ?`
 	var dummy int
-	err := s.db.QueryRowContext(ctx, query, taskListID, userID).Scan(&dummy)
+	err = s.db.QueryRowContext(ctx, query, taskListID, userID).Scan(&dummy)
 	if err == sql.ErrNoRows {
 		return ErrTaskGroupNotFound
 	}
@@ -1012,7 +1086,7 @@ func (s *Store) UpdateScheduleGroup(ctx context.Context, taskListID string, user
 	updateStr := "updated_at = ?"
 	args := []interface{}{time.Now().Format(time.RFC3339Nano)}
 
-	for key, value := range updates {
+	for key, value := range validatedUpdates {
 		updateStr += fmt.Sprintf(", %s = ?", key)
 		args = append(args, value)
 	}
@@ -1185,10 +1259,16 @@ func (s *Store) BatchUpdateTasks(ctx context.Context, userID int64, tasks []Task
 
 	// Apply updates
 	for _, tu := range tasks {
+		// Validate field names against allowlist
+		validatedUpdates, err := validateAndFilterFields(tu.Fields, scheduleTaskAllowedFields)
+		if err != nil {
+			return err
+		}
+
 		updateStr := "updated_at = ?"
 		args := []interface{}{now}
 
-		for key, value := range tu.Fields {
+		for key, value := range validatedUpdates {
 			updateStr += fmt.Sprintf(", %s = ?", key)
 			args = append(args, value)
 		}
@@ -1201,7 +1281,7 @@ func (s *Store) BatchUpdateTasks(ctx context.Context, userID int64, tasks []Task
 			WHERE task_id = ? AND user_id = ?
 		`, updateStr)
 
-		_, err := tx.ExecContext(ctx, updateQuery, args...)
+		_, err = tx.ExecContext(ctx, updateQuery, args...)
 		if err != nil {
 			return err
 		}
@@ -1219,8 +1299,8 @@ func (s *Store) DeleteScheduleTask(ctx context.Context, taskID string, userID in
 
 // ListScheduleTasks returns a paginated list of tasks with optional sync token filtering.
 // Sorted by last_modified DESC. If syncToken provided, filters to tasks where updated_at >= syncToken.
-// Returns nextSyncToken (current time as millis) only on final page.
-func (s *Store) ListScheduleTasks(ctx context.Context, userID int64, page, pageSize int, syncToken *int64) ([]ScheduleTask, *int64, error) {
+// Returns tasks, totalCount, nextSyncToken (current time as millis only on final page), error
+func (s *Store) ListScheduleTasks(ctx context.Context, userID int64, page, pageSize int, syncToken *int64) ([]ScheduleTask, int, *int64, error) {
 	if page < 1 {
 		page = 1
 	}
@@ -1244,7 +1324,7 @@ func (s *Store) ListScheduleTasks(ctx context.Context, userID int64, page, pageS
 	var totalCount int
 	err := s.db.QueryRowContext(ctx, countQuery, countArgs...).Scan(&totalCount)
 	if err != nil {
-		return nil, nil, err
+		return nil, 0, nil, err
 	}
 
 	// Get paginated results
@@ -1281,37 +1361,19 @@ func (s *Store) ListScheduleTasks(ctx context.Context, userID int64, page, pageS
 
 	rows, err := s.db.QueryContext(ctx, query, args...)
 	if err != nil {
-		return nil, nil, err
+		return nil, 0, nil, err
 	}
 	defer rows.Close()
 
 	var tasks []ScheduleTask
 	for rows.Next() {
 		var t ScheduleTask
-		var dueTimeStr, completedTimeStr, lastModifiedStr sql.NullString
 
 		err := rows.Scan(&t.TaskID, &t.UserID, &t.TaskListID, &t.Title, &t.Detail, &t.Status, &t.Importance, &t.Recurrence, &t.Links, &t.IsReminderOn,
-			&dueTimeStr, &completedTimeStr, &lastModifiedStr, &t.Sort, &t.SortCompleted, &t.PlanerSort, &t.SortTime, &t.PlanerSortTime,
+			&t.DueTime, &t.CompletedTime, &t.LastModified, &t.Sort, &t.SortCompleted, &t.PlanerSort, &t.SortTime, &t.PlanerSortTime,
 			&t.AllSort, &t.AllSortCompleted, &t.AllSortTime, &t.RecurrenceID)
 		if err != nil {
-			return nil, nil, err
-		}
-
-		// Parse datetime fields
-		if dueTimeStr.Valid {
-			if tm, err := time.Parse(time.RFC3339Nano, dueTimeStr.String); err == nil {
-				t.DueTime = tm.Unix() * 1000 // Convert to milliseconds
-			}
-		}
-		if completedTimeStr.Valid {
-			if tm, err := time.Parse(time.RFC3339Nano, completedTimeStr.String); err == nil {
-				t.CompletedTime = tm.Unix() * 1000
-			}
-		}
-		if lastModifiedStr.Valid {
-			if tm, err := time.Parse(time.RFC3339Nano, lastModifiedStr.String); err == nil {
-				t.LastModified = tm.Unix() * 1000
-			}
+			return nil, 0, nil, err
 		}
 
 		tasks = append(tasks, t)
@@ -1324,7 +1386,7 @@ func (s *Store) ListScheduleTasks(ctx context.Context, userID int64, page, pageS
 		nextToken = &now
 	}
 
-	return tasks, nextToken, rows.Err()
+	return tasks, totalCount, nextToken, rows.Err()
 }
 
 // === Summary Methods ===
@@ -1362,10 +1424,16 @@ func (s *Store) CreateSummary(ctx context.Context, sum *Summary) error {
 
 // UpdateSummary partially updates a summary.
 func (s *Store) UpdateSummary(ctx context.Context, id int64, userID int64, updates map[string]interface{}) error {
+	// Validate field names against allowlist
+	validatedUpdates, err := validateAndFilterFields(updates, summaryAllowedFields)
+	if err != nil {
+		return err
+	}
+
 	// Check if summary exists
 	query := `SELECT 1 FROM summaries WHERE id = ? AND user_id = ?`
 	var dummy int
-	err := s.db.QueryRowContext(ctx, query, id, userID).Scan(&dummy)
+	err = s.db.QueryRowContext(ctx, query, id, userID).Scan(&dummy)
 	if err == sql.ErrNoRows {
 		return ErrSummaryNotFound
 	}
@@ -1377,7 +1445,7 @@ func (s *Store) UpdateSummary(ctx context.Context, id int64, userID int64, updat
 	updateStr := "updated_at = ?"
 	args := []interface{}{time.Now().Format(time.RFC3339Nano)}
 
-	for key, value := range updates {
+	for key, value := range validatedUpdates {
 		updateStr += fmt.Sprintf(", %s = ?", key)
 		args = append(args, value)
 	}

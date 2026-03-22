@@ -201,7 +201,7 @@ func TestDeleteScheduleGroupCascade(t *testing.T) {
 	}
 
 	// List tasks
-	tasks, _, err := store.ListScheduleTasks(ctx, user.ID, 1, 10, nil)
+	tasks, _, _, err := store.ListScheduleTasks(ctx, user.ID, 1, 10, nil)
 	if err != nil {
 		t.Fatalf("failed to list tasks: %v", err)
 	}
@@ -227,7 +227,7 @@ func TestDeleteScheduleGroupCascade(t *testing.T) {
 	}
 
 	// Verify tasks are gone
-	tasks, _, err = store.ListScheduleTasks(ctx, user.ID, 1, 10, nil)
+	tasks, _, _, err = store.ListScheduleTasks(ctx, user.ID, 1, 10, nil)
 	if err != nil {
 		t.Fatalf("failed to list tasks: %v", err)
 	}
@@ -355,7 +355,7 @@ func TestUpsertScheduleTask(t *testing.T) {
 	}
 
 	// Retrieve and verify
-	tasks, _, err := store.ListScheduleTasks(ctx, user.ID, 1, 10, nil)
+	tasks, _, _, err := store.ListScheduleTasks(ctx, user.ID, 1, 10, nil)
 	if err != nil {
 		t.Fatalf("failed to list tasks: %v", err)
 	}
@@ -526,7 +526,7 @@ func TestBatchUpdateTasksAtomic(t *testing.T) {
 	}
 
 	// Verify updates
-	tasks, _, err := store.ListScheduleTasks(ctx, user.ID, 1, 10, nil)
+	tasks, _, _, err := store.ListScheduleTasks(ctx, user.ID, 1, 10, nil)
 	if err != nil {
 		t.Fatalf("failed to list tasks: %v", err)
 	}
@@ -622,7 +622,7 @@ func TestBatchUpdateTasksFailOnMissing(t *testing.T) {
 	}
 
 	// Verify t1 was NOT updated (transaction rolled back)
-	tasks, _, err := store.ListScheduleTasks(ctx, user.ID, 1, 10, nil)
+	tasks, _, _, err := store.ListScheduleTasks(ctx, user.ID, 1, 10, nil)
 	if err != nil {
 		t.Fatalf("failed to list tasks: %v", err)
 	}
@@ -682,7 +682,7 @@ func TestDeleteScheduleTask(t *testing.T) {
 	}
 
 	// Verify it's gone
-	tasks, _, err := store.ListScheduleTasks(ctx, user.ID, 1, 10, nil)
+	tasks, _, _, err := store.ListScheduleTasks(ctx, user.ID, 1, 10, nil)
 	if err != nil {
 		t.Fatalf("failed to list tasks: %v", err)
 	}
@@ -736,7 +736,7 @@ func TestListScheduleTasksWithSyncToken(t *testing.T) {
 	}
 
 	// List all tasks and get nextSyncToken
-	tasks, nextToken, err := store.ListScheduleTasks(ctx, user.ID, 1, 10, nil)
+	tasks, _, nextToken, err := store.ListScheduleTasks(ctx, user.ID, 1, 10, nil)
 	if err != nil {
 		t.Fatalf("failed to list tasks: %v", err)
 	}
@@ -766,7 +766,7 @@ func TestListScheduleTasksWithSyncToken(t *testing.T) {
 	}
 
 	// List with previous syncToken - should get only task B
-	tasks, nextToken2, err := store.ListScheduleTasks(ctx, user.ID, 1, 10, nextToken)
+	tasks, _, nextToken2, err := store.ListScheduleTasks(ctx, user.ID, 1, 10, nextToken)
 	if err != nil {
 		t.Fatalf("failed to list tasks with sync token: %v", err)
 	}
@@ -782,7 +782,7 @@ func TestListScheduleTasksWithSyncToken(t *testing.T) {
 	// List again with new syncToken - should get nothing
 	time.Sleep(10 * time.Millisecond)
 
-	tasks, _, err = store.ListScheduleTasks(ctx, user.ID, 1, 10, nextToken2)
+	tasks, _, _, err = store.ListScheduleTasks(ctx, user.ID, 1, 10, nextToken2)
 	if err != nil {
 		t.Fatalf("failed to list tasks with new sync token: %v", err)
 	}
@@ -838,7 +838,7 @@ func TestListScheduleTasksWithoutSyncToken(t *testing.T) {
 	}
 
 	// List all
-	tasks, _, err := store.ListScheduleTasks(ctx, user.ID, 1, 10, nil)
+	tasks, _, _, err := store.ListScheduleTasks(ctx, user.ID, 1, 10, nil)
 	if err != nil {
 		t.Fatalf("failed to list tasks: %v", err)
 	}

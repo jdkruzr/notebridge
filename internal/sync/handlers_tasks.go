@@ -1,11 +1,35 @@
 package sync
 
 import (
+	"errors"
 	"net/http"
-	"strconv"
+	"strings"
 
 	"github.com/sysop/notebridge/internal/syncdb"
 )
+
+// camelToSnake converts camelCase to snake_case
+func camelToSnake(s string) string {
+	var result strings.Builder
+	for i, r := range s {
+		if i > 0 && r >= 'A' && r <= 'Z' {
+			result.WriteRune('_')
+			result.WriteRune(r + 32) // convert to lowercase
+		} else {
+			result.WriteRune(r)
+		}
+	}
+	return result.String()
+}
+
+// convertFieldNames converts API field names (camelCase) to database field names (snake_case)
+func convertFieldNames(fields map[string]interface{}) map[string]interface{} {
+	converted := make(map[string]interface{})
+	for k, v := range fields {
+		converted[camelToSnake(k)] = v
+	}
+	return converted
+}
 
 // handleCreateScheduleGroup handles POST /api/file/schedule/group.
 // Creates a schedule group (task list).
@@ -100,7 +124,7 @@ func (s *Server) handleUpdateScheduleGroup(w http.ResponseWriter, r *http.Reques
 
 	// Update schedule group
 	if err := s.store.UpdateScheduleGroup(r.Context(), taskListID, userID, updates); err != nil {
-		if err == syncdb.ErrTaskGroupNotFound {
+		if errors.Is(err, syncdb.ErrTaskGroupNotFound) {
 			jsonError(w, ErrTaskGroupNotFound())
 			return
 		}
@@ -241,7 +265,7 @@ func (s *Server) handleCreateScheduleTask(w http.ResponseWriter, r *http.Request
 
 	// Upsert schedule task
 	if err := s.store.UpsertScheduleTask(r.Context(), task); err != nil {
-		if err == syncdb.ErrTaskGroupNotFound {
+		if errors.Is(err, syncdb.ErrTaskGroupNotFound) {
 			jsonError(w, ErrTaskGroupNotFound())
 			return
 		}
@@ -303,15 +327,18 @@ func (s *Server) handleBatchUpdateTasks(w http.ResponseWriter, r *http.Request) 
 			return
 		}
 
+		// Convert camelCase field names to snake_case
+		fields := convertFieldNames(fieldsRaw)
+
 		updates = append(updates, syncdb.TaskUpdate{
 			TaskID: taskID,
-			Fields: fieldsRaw,
+			Fields: fields,
 		})
 	}
 
 	// Batch update tasks
 	if err := s.store.BatchUpdateTasks(r.Context(), userID, updates); err != nil {
-		if err == syncdb.ErrTaskNotFound {
+		if errors.Is(err, syncdb.ErrTaskNotFound) {
 			jsonError(w, ErrTaskNotFound())
 			return
 		}
@@ -389,7 +416,7 @@ func (s *Server) handleListScheduleTasks(w http.ResponseWriter, r *http.Request)
 	}
 
 	// List schedule tasks
-	tasks, nextSyncToken, err := s.store.ListScheduleTasks(r.Context(), userID, int(pageToken), int(maxResults), syncToken)
+	tasks, totalCount, nextSyncToken, err := s.store.ListScheduleTasks(r.Context(), userID, int(pageToken), int(maxResults), syncToken)
 	if err != nil {
 		s.logger.Error("failed to list schedule tasks", "error", err)
 		jsonError(w, ErrInternal("internal server error"))
@@ -401,14 +428,15 @@ func (s *Server) handleListScheduleTasks(w http.ResponseWriter, r *http.Request)
 		"scheduleTask": tasks,
 	}
 
-	// Determine if there are more results (approximate based on page size)
-	if len(tasks) == int(maxResults) {
+	// Determine if there are more results using total count
+	totalPages := (totalCount + int(maxResults) - 1) / int(maxResults)
+	if pageToken < int64(totalPages) {
 		response["nextPageToken"] = pageToken + 1
 	}
 
 	// Add next sync token if returned
 	if nextSyncToken != nil {
-		response["nextSyncToken"] = strconv.FormatInt(*nextSyncToken, 10)
+		response["nextSyncToken"] = *nextSyncToken
 	}
 
 	// Return success

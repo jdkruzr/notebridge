@@ -1,6 +1,7 @@
 package sync
 
 import (
+	"errors"
 	"net/http"
 	"time"
 
@@ -41,6 +42,7 @@ func (s *Server) handleCreateSummaryGroup(w http.ResponseWriter, r *http.Request
 
 	// Create summary with is_summary_group='Y'
 	summary := &syncdb.Summary{
+		ID:                       s.snowflake.Generate(),
 		UserID:                   userID,
 		UniqueIdentifier:         uniqueID,
 		Name:                     name,
@@ -56,7 +58,7 @@ func (s *Server) handleCreateSummaryGroup(w http.ResponseWriter, r *http.Request
 	}
 
 	if err := s.store.CreateSummary(r.Context(), summary); err != nil {
-		if err == syncdb.ErrUniqueIDExists {
+		if errors.Is(err, syncdb.ErrUniqueIDExists) {
 			jsonError(w, ErrUniqueIDExists())
 			return
 		}
@@ -119,7 +121,7 @@ func (s *Server) handleUpdateSummaryGroup(w http.ResponseWriter, r *http.Request
 
 	// Update summary
 	if err := s.store.UpdateSummary(r.Context(), id, userID, updates); err != nil {
-		if err == syncdb.ErrSummaryGroupNotFound {
+		if errors.Is(err, syncdb.ErrSummaryNotFound) {
 			jsonError(w, ErrSummaryGroupNotFound())
 			return
 		}
@@ -246,6 +248,7 @@ func (s *Server) handleCreateSummary(w http.ResponseWriter, r *http.Request) {
 	}
 
 	summary := &syncdb.Summary{
+		ID:                     s.snowflake.Generate(),
 		UserID:                 userID,
 		UniqueIdentifier:       uniqueID,
 		Name:                   bodyStr(body, "name"),
@@ -261,7 +264,7 @@ func (s *Server) handleCreateSummary(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if err := s.store.CreateSummary(r.Context(), summary); err != nil {
-		if err == syncdb.ErrUniqueIDExists {
+		if errors.Is(err, syncdb.ErrUniqueIDExists) {
 			jsonError(w, ErrUniqueIDExists())
 			return
 		}
@@ -330,7 +333,7 @@ func (s *Server) handleUpdateSummary(w http.ResponseWriter, r *http.Request) {
 
 	// Update summary
 	if err := s.store.UpdateSummary(r.Context(), id, userID, updates); err != nil {
-		if err == syncdb.ErrSummaryNotFound {
+		if errors.Is(err, syncdb.ErrSummaryNotFound) {
 			jsonError(w, ErrSummaryNotFound())
 			return
 		}

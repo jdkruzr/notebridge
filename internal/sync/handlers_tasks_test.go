@@ -103,10 +103,10 @@ func TestAC51TaskSync(t *testing.T) {
 	// Check either camelCase or PascalCase field names due to JSON marshaling
 	var foundTaskID, foundTitle bool
 	for key, value := range taskData {
-		if key == "TaskID" && value.(string) == taskID {
+		if key == "taskId" && value.(string) == taskID {
 			foundTaskID = true
 		}
-		if key == "Title" && value.(string) == "Buy groceries" {
+		if key == "title" && value.(string) == "Buy groceries" {
 			foundTitle = true
 		}
 	}
@@ -117,7 +117,6 @@ func TestAC51TaskSync(t *testing.T) {
 
 // TestAC52GroupCRUD tests AC5.2: group CRUD operations
 func TestAC52GroupCRUD(t *testing.T) {
-	t.Skip("endpoint integration test - handlers verified by build")
 	server, store := setupTestServer(t)
 
 	// Generate JWT token
@@ -197,15 +196,16 @@ func TestAC52GroupCRUD(t *testing.T) {
 	server.Config.Handler.ServeHTTP(w, req)
 
 	json.NewDecoder(w.Body).Decode(&listResp)
-	groups = listResp["scheduleTaskGroup"].([]interface{})
-	if len(groups) != 0 {
-		t.Fatalf("expected 0 groups after deletion, got %d", len(groups))
+	groupsVal, ok := listResp["scheduleTaskGroup"].([]interface{})
+	if ok && len(groupsVal) != 0 {
+		t.Fatalf("expected 0 groups after deletion, got %d", len(groupsVal))
+	} else if !ok && listResp["scheduleTaskGroup"] != nil {
+		t.Fatalf("expected scheduleTaskGroup array in response: %v", listResp)
 	}
 }
 
 // TestAC53BatchUpdate tests AC5.3: batch task update atomicity
 func TestAC53BatchUpdate(t *testing.T) {
-	t.Skip("endpoint integration test - handlers verified by build")
 	server, store := setupTestServer(t)
 
 	// Generate JWT token
@@ -308,7 +308,6 @@ func TestAC53BatchUpdate(t *testing.T) {
 
 // TestAC54SyncToken tests AC5.4: nextSyncToken pagination
 func TestAC54SyncToken(t *testing.T) {
-	t.Skip("endpoint integration test - handlers verified by build")
 	server, store := setupTestServer(t)
 
 	// Generate JWT token
@@ -402,7 +401,6 @@ func TestAC54SyncToken(t *testing.T) {
 
 // TestAC55Recurrence tests AC5.5: recurrence field preservation
 func TestAC55Recurrence(t *testing.T) {
-	t.Skip("endpoint integration test - handlers verified by build")
 	server, store := setupTestServer(t)
 
 	// Generate JWT token
