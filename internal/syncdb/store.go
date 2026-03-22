@@ -947,7 +947,8 @@ func (s *Store) generateTaskListID(ctx context.Context, userID int64, title stri
 
 	// Check if ID exists
 	query := `SELECT 1 FROM schedule_groups WHERE task_list_id = ? AND user_id = ?`
-	err := s.db.QueryRowContext(ctx, query, baseID, userID).Scan(nil)
+	var dummy int
+	err := s.db.QueryRowContext(ctx, query, baseID, userID).Scan(&dummy)
 
 	if err == sql.ErrNoRows {
 		return baseID, nil // No collision
@@ -959,7 +960,7 @@ func (s *Store) generateTaskListID(ctx context.Context, userID int64, title stri
 	// Collision detected; try with suffix
 	for i := 1; i <= 1000; i++ {
 		suffixID := baseID + strconv.Itoa(i)
-		err := s.db.QueryRowContext(ctx, query, suffixID, userID).Scan(nil)
+		err := s.db.QueryRowContext(ctx, query, suffixID, userID).Scan(&dummy)
 		if err == sql.ErrNoRows {
 			return suffixID, nil
 		}
@@ -998,7 +999,8 @@ func (s *Store) UpsertScheduleGroup(ctx context.Context, g *ScheduleGroup) error
 func (s *Store) UpdateScheduleGroup(ctx context.Context, taskListID string, userID int64, updates map[string]interface{}) error {
 	// Check if group exists
 	query := `SELECT 1 FROM schedule_groups WHERE task_list_id = ? AND user_id = ?`
-	err := s.db.QueryRowContext(ctx, query, taskListID, userID).Scan(nil)
+	var dummy int
+	err := s.db.QueryRowContext(ctx, query, taskListID, userID).Scan(&dummy)
 	if err == sql.ErrNoRows {
 		return ErrTaskGroupNotFound
 	}
@@ -1125,7 +1127,8 @@ func (s *Store) UpsertScheduleTask(ctx context.Context, t *ScheduleTask) error {
 	// Validate taskListID exists
 	if t.TaskListID != "" {
 		query := `SELECT 1 FROM schedule_groups WHERE task_list_id = ? AND user_id = ?`
-		err := s.db.QueryRowContext(ctx, query, t.TaskListID, t.UserID).Scan(nil)
+		var dummy int
+		err := s.db.QueryRowContext(ctx, query, t.TaskListID, t.UserID).Scan(&dummy)
 		if err == sql.ErrNoRows {
 			return ErrTaskGroupNotFound
 		}
@@ -1161,7 +1164,8 @@ func (s *Store) BatchUpdateTasks(ctx context.Context, userID int64, tasks []Task
 	// Validate all taskIDs exist
 	for _, tu := range tasks {
 		query := `SELECT 1 FROM schedule_tasks WHERE task_id = ? AND user_id = ?`
-		err := s.db.QueryRowContext(ctx, query, tu.TaskID, userID).Scan(nil)
+		var dummy int
+		err := s.db.QueryRowContext(ctx, query, tu.TaskID, userID).Scan(&dummy)
 		if err == sql.ErrNoRows {
 			return ErrTaskNotFound
 		}
@@ -1315,7 +1319,7 @@ func (s *Store) ListScheduleTasks(ctx context.Context, userID int64, page, pageS
 
 	// Return nextSyncToken only on final page
 	var nextToken *int64
-	if isLastPage && syncToken != nil {
+	if isLastPage {
 		now := time.Now().UnixMilli()
 		nextToken = &now
 	}
@@ -1330,7 +1334,8 @@ func (s *Store) ListScheduleTasks(ctx context.Context, userID int64, page, pageS
 func (s *Store) CreateSummary(ctx context.Context, sum *Summary) error {
 	// Check uniqueness
 	query := `SELECT 1 FROM summaries WHERE user_id = ? AND unique_identifier = ?`
-	err := s.db.QueryRowContext(ctx, query, sum.UserID, sum.UniqueIdentifier).Scan(nil)
+	var dummy int
+	err := s.db.QueryRowContext(ctx, query, sum.UserID, sum.UniqueIdentifier).Scan(&dummy)
 	if err == nil {
 		return ErrUniqueIDExists // Already exists
 	}
@@ -1359,7 +1364,8 @@ func (s *Store) CreateSummary(ctx context.Context, sum *Summary) error {
 func (s *Store) UpdateSummary(ctx context.Context, id int64, userID int64, updates map[string]interface{}) error {
 	// Check if summary exists
 	query := `SELECT 1 FROM summaries WHERE id = ? AND user_id = ?`
-	err := s.db.QueryRowContext(ctx, query, id, userID).Scan(nil)
+	var dummy int
+	err := s.db.QueryRowContext(ctx, query, id, userID).Scan(&dummy)
 	if err == sql.ErrNoRows {
 		return ErrSummaryNotFound
 	}
