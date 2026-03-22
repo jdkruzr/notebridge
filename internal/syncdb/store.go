@@ -7,6 +7,7 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
+	"log/slog"
 	"time"
 )
 
@@ -833,8 +834,16 @@ func (s *Store) GetFileByStorageKey(ctx context.Context, userID int64, storageKe
 
 	entry.IsFolder = isFolder == "Y"
 	entry.IsActive = isActive == "Y"
-	entry.CreatedAt, _ = time.Parse(time.RFC3339Nano, createdAtStr)
-	entry.UpdatedAt, _ = time.Parse(time.RFC3339Nano, updatedAtStr)
+	if t, err := time.Parse(time.RFC3339Nano, createdAtStr); err != nil {
+		slog.Warn("GetFileByStorageKey: failed to parse created_at", "value", createdAtStr, "err", err)
+	} else {
+		entry.CreatedAt = t
+	}
+	if t, err := time.Parse(time.RFC3339Nano, updatedAtStr); err != nil {
+		slog.Warn("GetFileByStorageKey: failed to parse updated_at", "value", updatedAtStr, "err", err)
+	} else {
+		entry.UpdatedAt = t
+	}
 
 	return &entry, nil
 }

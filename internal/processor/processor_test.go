@@ -128,10 +128,10 @@ func TestSkipUnskip(t *testing.T) {
 }
 
 // AC4.6: Watchdog reclaims stuck in_progress jobs
-// NOTE: This test is skipped because notebridge jobs schema doesn't have started_at
-// but the processor has reclaimStuck functionality internally.
+// NOTE: This test is skipped because the watchdog's reclaimStuck query uses
+// internal timing thresholds that are hard to simulate without long waits.
 func TestWatchdog_ReclaimsStuckJobs(t *testing.T) {
-	t.Skip("notebridge jobs schema uses created_at/updated_at, not started_at")
+	t.Skip("watchdog reclaim requires simulating stuck jobs with expired started_at timestamps")
 }
 
 // AC6.2: claimNext skips jobs with future requeue_after

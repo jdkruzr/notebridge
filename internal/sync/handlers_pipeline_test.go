@@ -145,33 +145,11 @@ func TestPipeline_AC45_SearchOCRContent(t *testing.T) {
 }
 
 // AC4.6: Backup created before any file modification
+// SKIPPED: Requires full OCR injection flow to trigger backup; processor.executeJob
+// copies to backupPath before modifying the .note file, but triggering that path
+// requires a real .note file with parseable structure and an OCR client.
 func TestPipeline_AC46_BackupBeforeModification(t *testing.T) {
-	_, pipe, storageDir, _ := setupPipelineTestServer(t)
-	defer pipe.Close()
-
-	// Create backup directory
-	backupDir := t.TempDir()
-
-	// Create a test note file in storage
-	notePath := createTestNoteFile(t, storageDir, "test_backup.note")
-
-	// Verify backup directory exists (would be created by processor during injection)
-	if _, err := os.Stat(backupDir); err != nil {
-		t.Fatalf("backup directory should exist: %v", err)
-	}
-
-	// For this test, we just verify the storage and backup paths are set up correctly
-	if storageDir == "" {
-		t.Error("storage directory should be configured")
-	}
-	if backupDir == "" {
-		t.Error("backup directory should be configured")
-	}
-
-	// Verify the test file exists before any processing would occur
-	if _, err := os.Stat(notePath); err != nil {
-		t.Fatalf("test file should exist: %v", err)
-	}
+	t.Skip("requires mock OCR client and parseable .note fixture to trigger backup code path")
 }
 
 // Helper: Create a minimal synthetic .note file for testing
