@@ -791,8 +791,7 @@ func (s *Store) DeleteChunkRecords(ctx context.Context, uploadID string) error {
 	return err
 }
 
-// DB returns the underlying *sql.DB for direct SQL access in tests.
-// This is useful for test helpers that need to manipulate the database directly.
+// DB returns the underlying *sql.DB handle.
 func (s *Store) DB() *sql.DB {
 	return s.db
 }
