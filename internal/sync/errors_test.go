@@ -2,12 +2,11 @@ package sync
 
 import (
 	"net/http"
+	"strings"
 	"testing"
 )
 
 func TestErrWrongPassword(t *testing.T) {
-	t.Helper()
-
 	err := ErrWrongPassword()
 
 	if err.Code != "E0019" {
@@ -25,8 +24,6 @@ func TestErrWrongPassword(t *testing.T) {
 }
 
 func TestErrAccountLocked(t *testing.T) {
-	t.Helper()
-
 	err := ErrAccountLocked()
 
 	if err.Code != "E0045" {
@@ -44,8 +41,6 @@ func TestErrAccountLocked(t *testing.T) {
 }
 
 func TestErrInvalidToken(t *testing.T) {
-	t.Helper()
-
 	err := ErrInvalidToken()
 
 	if err.Code != "E0712" {
@@ -63,8 +58,6 @@ func TestErrInvalidToken(t *testing.T) {
 }
 
 func TestErrSyncLocked(t *testing.T) {
-	t.Helper()
-
 	err := ErrSyncLocked()
 
 	if err.Code != "E0078" {
@@ -82,8 +75,6 @@ func TestErrSyncLocked(t *testing.T) {
 }
 
 func TestErrBadRequest(t *testing.T) {
-	t.Helper()
-
 	msg := "missing parameter"
 	err := ErrBadRequest(msg)
 
@@ -102,8 +93,6 @@ func TestErrBadRequest(t *testing.T) {
 }
 
 func TestErrInternal(t *testing.T) {
-	t.Helper()
-
 	msg := "database connection failed"
 	err := ErrInternal(msg)
 
@@ -122,8 +111,6 @@ func TestErrInternal(t *testing.T) {
 }
 
 func TestSyncErrorImplementsErrorInterface(t *testing.T) {
-	t.Helper()
-
 	var err error = ErrWrongPassword()
 	if err == nil {
 		t.Errorf("expected SyncError to implement error interface")
@@ -131,8 +118,6 @@ func TestSyncErrorImplementsErrorInterface(t *testing.T) {
 }
 
 func TestSyncErrorErrorMethod(t *testing.T) {
-	t.Helper()
-
 	tests := []struct {
 		name     string
 		err      *SyncError
@@ -162,19 +147,9 @@ func TestSyncErrorErrorMethod(t *testing.T) {
 				t.Errorf("Error() should return non-empty string")
 			}
 			// Error message should contain the code
-			if !contains(errStr, tt.contains) {
+			if !strings.Contains(errStr, tt.contains) {
 				t.Errorf("Error() %q should contain %q", errStr, tt.contains)
 			}
 		})
 	}
-}
-
-// Helper function
-func contains(s, substr string) bool {
-	for i := 0; i < len(s)-len(substr)+1; i++ {
-		if s[i:i+len(substr)] == substr {
-			return true
-		}
-	}
-	return false
 }

@@ -55,6 +55,7 @@ CREATE TABLE IF NOT EXISTS equipment (
 	name TEXT,
 	status TEXT,
 	total_capacity INTEGER,
+	UNIQUE(equipment_no, user_id),
 	FOREIGN KEY (user_id) REFERENCES users(id)
 );
 

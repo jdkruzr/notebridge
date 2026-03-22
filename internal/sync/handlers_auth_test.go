@@ -160,11 +160,14 @@ func TestAC12AuthenticatedRequest(t *testing.T) {
 			"account": testEmail,
 		}
 		body, _ := json.Marshal(reqBody)
-		resp, _ := http.Post(
+		resp, err := http.Post(
 			server.URL+"/api/user/login/challenge",
 			"application/json",
 			bytes.NewReader(body),
 		)
+		if err != nil {
+			return "", 0, err
+		}
 		defer resp.Body.Close()
 
 		var challengeResp map[string]interface{}
@@ -187,11 +190,14 @@ func TestAC12AuthenticatedRequest(t *testing.T) {
 		"equipmentNo":  "SN100001",
 	}
 	verifyJSON, _ := json.Marshal(verifyBody)
-	resp, _ := http.Post(
+	resp, err := http.Post(
 		server.URL+"/api/user/login/verify",
 		"application/json",
 		bytes.NewReader(verifyJSON),
 	)
+	if err != nil {
+		t.Fatalf("failed to post verify: %v", err)
+	}
 	defer resp.Body.Close()
 
 	var verifyResp map[string]interface{}
@@ -230,11 +236,14 @@ func TestAC13WrongPassword(t *testing.T) {
 		"account": testEmail,
 	}
 	body, _ := json.Marshal(reqBody)
-	resp, _ := http.Post(
+	resp, err := http.Post(
 		server.URL+"/api/user/login/challenge",
 		"application/json",
 		bytes.NewReader(body),
 	)
+	if err != nil {
+		t.Fatalf("failed to post challenge: %v", err)
+	}
 	defer resp.Body.Close()
 
 	var challengeResp map[string]interface{}
@@ -255,11 +264,14 @@ func TestAC13WrongPassword(t *testing.T) {
 		"equipmentNo":  "SN100001",
 	}
 	verifyJSON, _ := json.Marshal(verifyBody)
-	resp, _ = http.Post(
+	resp, err = http.Post(
 		server.URL+"/api/user/login/verify",
 		"application/json",
 		bytes.NewReader(verifyJSON),
 	)
+	if err != nil {
+		t.Fatalf("failed to post verify: %v", err)
+	}
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusUnauthorized {
@@ -289,11 +301,14 @@ func TestAC14InvalidToken(t *testing.T) {
 		"account": testEmail,
 	}
 	body, _ := json.Marshal(reqBody)
-	resp, _ := http.Post(
+	resp, err := http.Post(
 		server.URL+"/api/user/login/challenge",
 		"application/json",
 		bytes.NewReader(body),
 	)
+	if err != nil {
+		t.Fatalf("failed to post challenge: %v", err)
+	}
 	defer resp.Body.Close()
 
 	var challengeResp map[string]interface{}
@@ -314,11 +329,14 @@ func TestAC14InvalidToken(t *testing.T) {
 		"equipmentNo":  "SN100001",
 	}
 	verifyJSON, _ := json.Marshal(verifyBody)
-	resp, _ = http.Post(
+	resp, err = http.Post(
 		server.URL+"/api/user/login/verify",
 		"application/json",
 		bytes.NewReader(verifyJSON),
 	)
+	if err != nil {
+		t.Fatalf("failed to post verify: %v", err)
+	}
 	defer resp.Body.Close()
 
 	var verifyResp map[string]interface{}
@@ -326,8 +344,8 @@ func TestAC14InvalidToken(t *testing.T) {
 
 	// Verify that invalid token is rejected by the auth service
 	ctx := context.Background()
-	_, err := store.GetToken(ctx, "nonexistent_key")
-	if err == nil {
+	_, tokenErr := store.GetToken(ctx, "nonexistent_key")
+	if tokenErr == nil {
 		t.Fatalf("expected error for nonexistent token, got nil")
 	}
 
@@ -354,11 +372,14 @@ func TestAC15AccountLockout(t *testing.T) {
 			"account": testEmail,
 		}
 		body, _ := json.Marshal(reqBody)
-		resp, _ := http.Post(
+		resp, err := http.Post(
 			server.URL+"/api/user/login/challenge",
 			"application/json",
 			bytes.NewReader(body),
 		)
+		if err != nil {
+			t.Fatalf("failed to post challenge: %v", err)
+		}
 		defer resp.Body.Close()
 
 		var challengeResp map[string]interface{}
@@ -379,11 +400,14 @@ func TestAC15AccountLockout(t *testing.T) {
 			"equipmentNo":  "SN100001",
 		}
 		verifyJSON, _ := json.Marshal(verifyBody)
-		resp, _ = http.Post(
+		resp, err = http.Post(
 			server.URL+"/api/user/login/verify",
 			"application/json",
 			bytes.NewReader(verifyJSON),
 		)
+		if err != nil {
+			t.Fatalf("failed to post verify: %v", err)
+		}
 		resp.Body.Close()
 	}
 
@@ -395,11 +419,14 @@ func TestAC15AccountLockout(t *testing.T) {
 		"account": testEmail,
 	}
 	body, _ := json.Marshal(reqBody)
-	resp, _ := http.Post(
+	resp, err := http.Post(
 		server.URL+"/api/user/login/challenge",
 		"application/json",
 		bytes.NewReader(body),
 	)
+	if err != nil {
+		t.Fatalf("failed to post challenge: %v", err)
+	}
 	defer resp.Body.Close()
 
 	var challengeResp map[string]interface{}
@@ -420,11 +447,14 @@ func TestAC15AccountLockout(t *testing.T) {
 		"equipmentNo":  "SN100001",
 	}
 	verifyJSON, _ := json.Marshal(verifyBody)
-	resp, _ = http.Post(
+	resp, err = http.Post(
 		server.URL+"/api/user/login/verify",
 		"application/json",
 		bytes.NewReader(verifyJSON),
 	)
+	if err != nil {
+		t.Fatalf("failed to post verify: %v", err)
+	}
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusForbidden {
@@ -452,11 +482,14 @@ func TestAC16ExpiredChallenge(t *testing.T) {
 		"account": testEmail,
 	}
 	body, _ := json.Marshal(reqBody)
-	resp, _ := http.Post(
+	resp, err := http.Post(
 		server.URL+"/api/user/login/challenge",
 		"application/json",
 		bytes.NewReader(body),
 	)
+	if err != nil {
+		t.Fatalf("failed to post challenge: %v", err)
+	}
 	defer resp.Body.Close()
 
 	var challengeResp map[string]interface{}
@@ -485,11 +518,14 @@ func TestAC16ExpiredChallenge(t *testing.T) {
 		"equipmentNo":  "SN100001",
 	}
 	verifyJSON, _ := json.Marshal(verifyBody)
-	resp, _ = http.Post(
+	resp, err = http.Post(
 		server.URL+"/api/user/login/verify",
 		"application/json",
 		bytes.NewReader(verifyJSON),
 	)
+	if err != nil {
+		t.Fatalf("failed to post verify: %v", err)
+	}
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusUnauthorized {

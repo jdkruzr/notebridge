@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/rand"
 	"crypto/sha256"
+	"crypto/subtle"
 	"encoding/hex"
 	"fmt"
 	"strconv"
@@ -91,8 +92,8 @@ func (a *AuthService) VerifyLogin(ctx context.Context, account, submittedHash st
 	// Compute expected hash
 	expectedHash := fmt.Sprintf("%x", sha256.Sum256([]byte(user.PasswordHash+randomCode)))
 
-	// Compare
-	if submittedHash != expectedHash {
+	// Compare using constant-time comparison to prevent timing attacks
+	if subtle.ConstantTimeCompare([]byte(submittedHash), []byte(expectedHash)) != 1 {
 		// Wrong password
 		if err := a.store.IncrementErrorCount(ctx, user.ID); err != nil {
 			return "", fmt.Errorf("failed to increment error count: %w", err)

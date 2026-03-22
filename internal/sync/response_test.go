@@ -10,8 +10,6 @@ import (
 )
 
 func TestJSONSuccess(t *testing.T) {
-	t.Helper()
-
 	w := httptest.NewRecorder()
 	jsonSuccess(w, nil)
 
@@ -35,8 +33,6 @@ func TestJSONSuccess(t *testing.T) {
 }
 
 func TestJSONSuccessWithExtra(t *testing.T) {
-	t.Helper()
-
 	w := httptest.NewRecorder()
 	extra := map[string]interface{}{
 		"user_id":   12345,
@@ -72,8 +68,6 @@ func TestJSONSuccessWithExtra(t *testing.T) {
 }
 
 func TestJSONError(t *testing.T) {
-	t.Helper()
-
 	tests := []struct {
 		name       string
 		err        *SyncError
@@ -130,8 +124,6 @@ func TestJSONError(t *testing.T) {
 }
 
 func TestParseJSONBody(t *testing.T) {
-	t.Helper()
-
 	tests := []struct {
 		name    string
 		body    string
@@ -176,8 +168,6 @@ func TestParseJSONBody(t *testing.T) {
 }
 
 func TestParseJSONBodyPreservesNumbers(t *testing.T) {
-	t.Helper()
-
 	body := `{"int_val": 42, "float_val": 3.14, "str_num": "12345"}`
 	req := httptest.NewRequest("POST", "/", strings.NewReader(body))
 	defer req.Body.Close()
@@ -201,8 +191,6 @@ func TestParseJSONBodyPreservesNumbers(t *testing.T) {
 }
 
 func TestBodyStr(t *testing.T) {
-	t.Helper()
-
 	tests := []struct {
 		name  string
 		m     map[string]interface{}
@@ -240,8 +228,6 @@ func TestBodyStr(t *testing.T) {
 }
 
 func TestBodyInt(t *testing.T) {
-	t.Helper()
-
 	tests := []struct {
 		name  string
 		m     map[string]interface{}
@@ -285,8 +271,6 @@ func TestBodyInt(t *testing.T) {
 }
 
 func TestBodyBool(t *testing.T) {
-	t.Helper()
-
 	tests := []struct {
 		name  string
 		m     map[string]interface{}
@@ -354,8 +338,6 @@ func TestBodyBool(t *testing.T) {
 }
 
 func TestIntegrationJSONResponseCycle(t *testing.T) {
-	t.Helper()
-
 	// Test a complete cycle: parse request -> format response
 	body := `{"username": "alice", "attempt": 2}`
 	req := httptest.NewRequest("POST", "/", bytes.NewReader([]byte(body)))

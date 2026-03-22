@@ -140,11 +140,11 @@ echo
 
 info "Checking health..."
 sleep 2
-if curl -sf "http://localhost:${WEB_PORT}/health" >/dev/null 2>&1; then
+if curl -sf "http://localhost:${SYNC_PORT}/health" >/dev/null 2>&1; then
     ok "Health check passed"
 else
     sleep 3
-    if curl -sf "http://localhost:${WEB_PORT}/health" >/dev/null 2>&1; then
+    if curl -sf "http://localhost:${SYNC_PORT}/health" >/dev/null 2>&1; then
         ok "Health check passed"
     else
         warn "Health check failed. Run: sudo docker logs notebridge"

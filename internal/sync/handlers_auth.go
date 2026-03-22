@@ -26,7 +26,7 @@ func (s *Server) handleChallenge(w http.ResponseWriter, r *http.Request) {
 	randomCode, timestamp, err := s.authService.GenerateChallenge(r.Context(), account)
 	if err != nil {
 		s.logger.Error("failed to generate challenge", "error", err)
-		jsonError(w, ErrInternal(err.Error()))
+		jsonError(w, ErrInternal("internal server error"))
 		return
 	}
 
@@ -82,7 +82,7 @@ func (s *Server) handleLoginVerify(w http.ResponseWriter, r *http.Request) {
 			jsonError(w, syncErr)
 		} else {
 			s.logger.Error("failed to verify login", "error", err)
-			jsonError(w, ErrInternal(err.Error()))
+			jsonError(w, ErrInternal("internal server error"))
 		}
 		return
 	}
@@ -91,13 +91,13 @@ func (s *Server) handleLoginVerify(w http.ResponseWriter, r *http.Request) {
 	user, err := s.store.GetUserByEmail(r.Context(), account)
 	if err != nil {
 		s.logger.Error("failed to get user after successful login", "error", err)
-		jsonError(w, ErrInternal(err.Error()))
+		jsonError(w, ErrInternal("internal server error"))
 		return
 	}
 
 	if err := s.store.EnsureEquipment(r.Context(), equipmentNo, user.ID); err != nil {
 		s.logger.Error("failed to ensure equipment record", "error", err)
-		jsonError(w, ErrInternal(err.Error()))
+		jsonError(w, ErrInternal("internal server error"))
 		return
 	}
 

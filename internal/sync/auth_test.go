@@ -7,6 +7,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/golang-jwt/jwt/v5"
 	"github.com/sysop/notebridge/internal/syncdb"
 )
 
@@ -198,26 +199,36 @@ func TestExpiredJWTToken(t *testing.T) {
 		t.Fatalf("failed to ensure user: %v", err)
 	}
 
-	// Generate valid token, then manually expire it by deleting from DB
+	// Generate valid token
 	randomCode, timestamp, _ := authService.GenerateChallenge(ctx, "test@example.com")
 	expectedHash := fmt.Sprintf("%x", sha256.Sum256([]byte(passwordHash+randomCode)))
 	tokenStr, _ := authService.VerifyLogin(ctx, "test@example.com", expectedHash, timestamp)
 
-	// Extract JTI from token and delete it from DB to simulate expiry
-	// For now, just delete the token from database
-	// (In real scenario, JWT library would check exp claim first)
+	// Parse token to extract JTI
+	token, _ := jwt.ParseWithClaims(tokenStr, jwt.MapClaims{}, func(token *jwt.Token) (interface{}, error) {
+		secret, _ := store.GetOrCreateJWTSecret(ctx)
+		return []byte(secret), nil
+	})
+	claims := token.Claims.(jwt.MapClaims)
+	jti := claims["jti"].(string)
 
-	// AC1.4: Expired token returns E0712
+	// Delete the token from database to simulate revocation
+	db.Exec("DELETE FROM auth_tokens WHERE key = ?", jti)
+
+	// AC1.4: Expired/revoked token returns E0712
 	_, _, err = authService.ValidateJWTToken(ctx, tokenStr)
-	if err != nil {
-		// Either token is expired (ok) or invalid format
-		syncErr := err.(*SyncError)
-		if syncErr.Code != "E0712" {
-			t.Errorf("expected E0712, got %s", syncErr.Code)
-		}
+	if err == nil {
+		t.Fatal("expected error for revoked token")
+	}
+	syncErr, ok := err.(*SyncError)
+	if !ok {
+		t.Fatalf("expected SyncError, got %T", err)
+	}
+	if syncErr.Code != "E0712" {
+		t.Errorf("expected E0712, got %s", syncErr.Code)
 	}
 
-	t.Logf("AC1.4 PASS: Expired JWT returns E0712")
+	t.Logf("AC1.4 PASS: Revoked JWT returns E0712")
 }
 
 func TestAccountLockout(t *testing.T) {

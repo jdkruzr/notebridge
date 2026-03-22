@@ -58,8 +58,7 @@ func main() {
 	logger.Info("user bootstrapped", "email", cfg.UserEmail)
 
 	// Get or create JWT secret from store
-	// Note: cfg.JWTSecret is already set from env (required by config.Load)
-	// We store it in the DB for retrieval by AuthService
+	// AuthService will call GetOrCreateJWTSecret as needed
 	_, err = store.GetOrCreateJWTSecret(ctx)
 	if err != nil {
 		logger.Error("failed to get or create JWT secret", "error", err)

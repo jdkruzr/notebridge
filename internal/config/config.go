@@ -3,7 +3,6 @@ package config
 import (
 	"fmt"
 	"os"
-	"strconv"
 )
 
 // Config holds all NoteBridge configuration loaded from environment variables.
@@ -25,32 +24,27 @@ type Config struct {
 	LogFormat string
 
 	// Authentication
-	JWTSecret         string
-	UserEmail         string
-	UserPasswordHash  string
+	UserEmail        string
+	UserPasswordHash string
 }
 
 // Load reads configuration from environment variables with defaults.
 // Returns an error if required fields are missing.
 func Load() (*Config, error) {
 	cfg := &Config{
-		DBPath:          envOrDefault("NB_DB_PATH", "/data/notebridge.db"),
-		StoragePath:     envOrDefault("NB_STORAGE_PATH", "/data/storage"),
-		BackupPath:      envOrDefault("NB_BACKUP_PATH", "/data/backups"),
-		CachePath:       envOrDefault("NB_CACHE_PATH", "/data/cache"),
-		WebListenAddr:   envOrDefault("NB_WEB_LISTEN_ADDR", ":8443"),
-		SyncListenAddr:  envOrDefault("NB_SYNC_LISTEN_ADDR", ":19071"),
-		LogLevel:        envOrDefault("NB_LOG_LEVEL", "info"),
-		LogFormat:       envOrDefault("NB_LOG_FORMAT", "json"),
-		JWTSecret:       os.Getenv("NB_JWT_SECRET"),
-		UserEmail:       os.Getenv("NB_USER_EMAIL"),
+		DBPath:           envOrDefault("NB_DB_PATH", "/data/notebridge.db"),
+		StoragePath:      envOrDefault("NB_STORAGE_PATH", "/data/storage"),
+		BackupPath:       envOrDefault("NB_BACKUP_PATH", "/data/backups"),
+		CachePath:        envOrDefault("NB_CACHE_PATH", "/data/cache"),
+		WebListenAddr:    envOrDefault("NB_WEB_LISTEN_ADDR", ":8443"),
+		SyncListenAddr:   envOrDefault("NB_SYNC_LISTEN_ADDR", ":19071"),
+		LogLevel:         envOrDefault("NB_LOG_LEVEL", "info"),
+		LogFormat:        envOrDefault("NB_LOG_FORMAT", "json"),
+		UserEmail:        os.Getenv("NB_USER_EMAIL"),
 		UserPasswordHash: os.Getenv("NB_USER_PASSWORD_HASH"),
 	}
 
 	// Validate required fields
-	if cfg.JWTSecret == "" {
-		return nil, fmt.Errorf("missing required field: NB_JWT_SECRET")
-	}
 	if cfg.UserEmail == "" {
 		return nil, fmt.Errorf("missing required field: NB_USER_EMAIL")
 	}
@@ -65,16 +59,6 @@ func Load() (*Config, error) {
 func envOrDefault(key, defaultVal string) string {
 	if val := os.Getenv(key); val != "" {
 		return val
-	}
-	return defaultVal
-}
-
-// envIntOrDefault returns the environment variable as an integer, or the default if not set.
-func envIntOrDefault(key string, defaultVal int) int {
-	if val := os.Getenv(key); val != "" {
-		if intVal, err := strconv.Atoi(val); err == nil {
-			return intVal
-		}
 	}
 	return defaultVal
 }
