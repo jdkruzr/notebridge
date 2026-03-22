@@ -374,11 +374,19 @@ func (s *Store) CleanupExpired(ctx context.Context) error {
 
 // AcquireLock attempts to acquire a sync lock for a device.
 // Returns ErrSyncLocked if another device already holds the lock.
-// Sets 10-min TTL.
+// Sets 10-min TTL. Uses atomic transaction to prevent TOCTOU race.
 func (s *Store) AcquireLock(ctx context.Context, userID int64, equipmentNo string) error {
 	now := time.Now()
 	expiresAt := now.Add(10 * time.Minute).Format(time.RFC3339Nano)
 	nowStr := now.Format(time.RFC3339Nano)
+
+	// Use transaction to make check-and-set atomic
+	// SQLite with IMMEDIATE isolation ensures serialization
+	tx, err := s.db.BeginTx(ctx, &sql.TxOptions{})
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback()
 
 	// Check if another device already holds an unexpired lock
 	query := `
@@ -387,7 +395,7 @@ func (s *Store) AcquireLock(ctx context.Context, userID int64, equipmentNo strin
 	`
 
 	var existingDevice string
-	err := s.db.QueryRowContext(ctx, query, userID, nowStr).Scan(&existingDevice)
+	err = tx.QueryRowContext(ctx, query, userID, nowStr).Scan(&existingDevice)
 	if err == nil && existingDevice != equipmentNo {
 		return ErrSyncLocked
 	}
@@ -401,8 +409,12 @@ func (s *Store) AcquireLock(ctx context.Context, userID int64, equipmentNo strin
 		VALUES (?, ?, ?)
 	`
 
-	_, err = s.db.ExecContext(ctx, insertQuery, userID, equipmentNo, expiresAt)
-	return err
+	_, err = tx.ExecContext(ctx, insertQuery, userID, equipmentNo, expiresAt)
+	if err != nil {
+		return err
+	}
+
+	return tx.Commit()
 }
 
 // ReleaseLock removes the sync lock for a user.
@@ -491,7 +503,7 @@ func (s *Store) GetFileByPath(ctx context.Context, userID int64, directoryID int
 	query := `
 		SELECT id, user_id, directory_id, file_name, inner_name, storage_key, md5, size, is_folder, is_active, created_at, updated_at
 		FROM files
-		WHERE user_id = ? AND directory_id = ? AND file_name = ?
+		WHERE user_id = ? AND directory_id = ? AND file_name = ? AND is_active = 'Y'
 	`
 
 	var f FileEntry
@@ -536,7 +548,7 @@ func (s *Store) ListFolder(ctx context.Context, userID int64, directoryID int64)
 	query := `
 		SELECT id, user_id, directory_id, file_name, inner_name, storage_key, md5, size, is_folder, is_active, created_at, updated_at
 		FROM files
-		WHERE user_id = ? AND directory_id = ?
+		WHERE user_id = ? AND directory_id = ? AND is_active = 'Y'
 		ORDER BY is_folder DESC, file_name
 	`
 

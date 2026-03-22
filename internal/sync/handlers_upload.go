@@ -2,7 +2,6 @@ package sync
 
 import (
 	"encoding/base64"
-	"fmt"
 	"net/http"
 	"net/url"
 	"strconv"
@@ -104,10 +103,16 @@ func (s *Server) handleOssUpload(w http.ResponseWriter, r *http.Request) {
 	}
 	path := string(pathBytes)
 
-	// Verify signature and consume nonce
-	_, _, err = s.authService.VerifySignedURL(r.Context(), signature)
+	// Verify signature and consume nonce, check path matches
+	signedPath, _, err := s.authService.VerifySignedURL(r.Context(), signature)
 	if err != nil {
 		jsonError(w, ErrInvalidToken())
+		return
+	}
+
+	// Verify the path in the signed URL matches the decoded path query param
+	if signedPath != path {
+		jsonError(w, ErrBadRequest("path mismatch with signed URL"))
 		return
 	}
 
@@ -136,9 +141,8 @@ func (s *Server) handleOssUpload(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Return 200 OK
-	w.WriteHeader(http.StatusOK)
-	fmt.Fprintf(w, `{"cd":"000","md5":"%s"}`, md5hex)
+	// Return success with MD5
+	jsonSuccess(w, map[string]interface{}{"md5": md5hex})
 }
 
 // handleOssUploadPart handles POST /api/oss/upload/part.
@@ -183,8 +187,16 @@ func (s *Server) handleOssUploadPart(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	partNumber, _ := strconv.Atoi(partNumberStr)
-	totalChunks, _ := strconv.Atoi(totalChunksStr)
+	partNumber, err := strconv.Atoi(partNumberStr)
+	if err != nil {
+		jsonError(w, ErrBadRequest("invalid partNumber"))
+		return
+	}
+	totalChunks, err := strconv.Atoi(totalChunksStr)
+	if err != nil {
+		jsonError(w, ErrBadRequest("invalid totalChunks"))
+		return
+	}
 
 	if uploadID == "" {
 		uploadID = uuid.New().String()

@@ -1,6 +1,7 @@
 package sync
 
 import (
+	"context"
 	"net/http"
 	"path"
 	"strconv"
@@ -282,11 +283,16 @@ func (s *Server) handleMoveV3(w http.ResponseWriter, r *http.Request) {
 	newFileName := path.Base(toPath)
 	newDirPath := path.Dir(toPath)
 
-	// Resolve destination directory ID (for now, assume root)
+	// Resolve destination directory ID
 	newDirectoryID := int64(0)
 	if newDirPath != "/" && newDirPath != "." {
-		// TODO: resolve path to directory ID
-		newDirectoryID = 0
+		var err error
+		newDirectoryID, err = s.resolvePathToDirectoryID(r.Context(), userID, newDirPath)
+		if err != nil {
+			s.logger.Error("failed to resolve destination path", "path", newDirPath, "error", err)
+			jsonError(w, ErrBadRequest("failed to resolve destination folder path"))
+			return
+		}
 	}
 
 	// Circular move detection for folders
@@ -425,8 +431,13 @@ func (s *Server) handleCopyV3(w http.ResponseWriter, r *http.Request) {
 	// Resolve destination directory ID
 	newDirectoryID := int64(0)
 	if newDirPath != "/" && newDirPath != "." {
-		// TODO: resolve path to directory ID
-		newDirectoryID = 0
+		var err error
+		newDirectoryID, err = s.resolvePathToDirectoryID(r.Context(), userID, newDirPath)
+		if err != nil {
+			s.logger.Error("failed to resolve destination path", "path", newDirPath, "error", err)
+			jsonError(w, ErrBadRequest("failed to resolve destination folder path"))
+			return
+		}
 	}
 
 	// Check for name collision
@@ -520,7 +531,12 @@ func (s *Server) handleCopyV3(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
-		// TODO: For folders, recursive deep copy with new IDs for all children
+		// Recursively copy all children
+		if err := s.recursiveFolderCopy(r.Context(), userID, srcFile.ID, newFileID); err != nil {
+			s.logger.Error("failed to recursively copy folder children", "error", err)
+			jsonError(w, ErrInternal("internal server error"))
+			return
+		}
 	}
 
 	// Refresh sync lock
@@ -591,4 +607,75 @@ func (s *Server) handleSpaceUsage(w http.ResponseWriter, r *http.Request) {
 		"used":  used,
 		"total": int64(1099511627776),
 	})
+}
+
+// recursiveFolderCopy recursively copies all children of a source folder to a destination folder.
+// For each child, it creates a new entry with a new Snowflake ID and copies blob content if needed.
+func (s *Server) recursiveFolderCopy(ctx context.Context, userID int64, srcFolderID int64, dstFolderID int64) error {
+	// List all children of source folder
+	children, err := s.store.ListFolder(ctx, userID, srcFolderID)
+	if err != nil {
+		return err
+	}
+
+	for _, child := range children {
+		// Generate new ID for the copy
+		newID := s.snowflake.Generate()
+
+		if child.IsFolder {
+			// Create folder entry
+			folderEntry := &syncdb.FileEntry{
+				ID:          newID,
+				UserID:      userID,
+				DirectoryID: dstFolderID,
+				FileName:    child.FileName,
+				InnerName:   child.InnerName,
+				StorageKey:  "",
+				MD5:         "",
+				Size:        0,
+				IsFolder:    true,
+				IsActive:    true,
+			}
+			if err := s.store.CreateFile(ctx, folderEntry); err != nil {
+				return err
+			}
+
+			// Recursively copy children
+			if err := s.recursiveFolderCopy(ctx, userID, child.ID, newID); err != nil {
+				return err
+			}
+		} else {
+			// For files, copy blob data and create entry
+			newStorageKey := child.StorageKey + ".copy." + strconv.FormatInt(newID, 10)
+
+			srcReader, _, err := s.blobStore.Get(ctx, child.StorageKey)
+			if err != nil {
+				return err
+			}
+			defer srcReader.Close()
+
+			_, md5hex, err := s.blobStore.Put(ctx, newStorageKey, srcReader)
+			if err != nil {
+				return err
+			}
+
+			fileEntry := &syncdb.FileEntry{
+				ID:          newID,
+				UserID:      userID,
+				DirectoryID: dstFolderID,
+				FileName:    child.FileName,
+				InnerName:   child.InnerName,
+				StorageKey:  newStorageKey,
+				MD5:         md5hex,
+				Size:        child.Size,
+				IsFolder:    false,
+				IsActive:    true,
+			}
+			if err := s.store.CreateFile(ctx, fileEntry); err != nil {
+				return err
+			}
+		}
+	}
+
+	return nil
 }

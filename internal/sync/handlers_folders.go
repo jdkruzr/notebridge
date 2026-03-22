@@ -1,8 +1,11 @@
 package sync
 
 import (
+	"context"
+	"errors"
 	"net/http"
 	"path"
+	"strings"
 
 	"github.com/sysop/notebridge/internal/syncdb"
 )
@@ -48,9 +51,13 @@ func (s *Server) handleCreateFolder(w http.ResponseWriter, r *http.Request) {
 	// Resolve parent directory ID (0 = root)
 	parentID := int64(0)
 	if parentPath != "/" && parentPath != "." {
-		// TODO: Resolve path to directory ID (for now, assume root)
-		// In a real implementation, we'd walk the path and find or create intermediate folders
-		parentID = 0
+		var err error
+		parentID, err = s.resolvePathToDirectoryID(r.Context(), userID, parentPath)
+		if err != nil {
+			s.logger.Error("failed to resolve parent path", "path", parentPath, "error", err)
+			jsonError(w, ErrBadRequest("failed to resolve parent folder path"))
+			return
+		}
 	}
 
 	// Check for name collision
@@ -247,4 +254,60 @@ func (s *Server) handleListFolderV2(w http.ResponseWriter, r *http.Request) {
 	jsonSuccess(w, map[string]interface{}{
 		"entries": result,
 	})
+}
+
+// resolvePathToDirectoryID walks a path and returns the directory ID.
+// Path components are split by "/" and each is looked up as a child folder.
+// Creates intermediate folders if they don't exist (for collection sync).
+func (s *Server) resolvePathToDirectoryID(ctx context.Context, userID int64, folderPath string) (int64, error) {
+	if folderPath == "/" || folderPath == "" || folderPath == "." {
+		return 0, nil // Root directory
+	}
+
+	// Split path into components, filtering empty parts
+	components := strings.Split(folderPath, "/")
+	var parts []string
+	for _, comp := range components {
+		if comp != "" && comp != "." {
+			parts = append(parts, comp)
+		}
+	}
+
+	// Walk the path, creating folders as needed
+	currentID := int64(0) // Start at root
+	for _, folderName := range parts {
+		// Check if folder exists at current level
+		existing, err := s.store.GetFileByPath(ctx, userID, currentID, folderName)
+		if err != nil {
+			return 0, err
+		}
+
+		if existing != nil {
+			if !existing.IsFolder {
+				return 0, errors.New("path component is not a folder")
+			}
+			currentID = existing.ID
+		} else {
+			// Create the folder
+			newID := s.snowflake.Generate()
+			folderEntry := &syncdb.FileEntry{
+				ID:          newID,
+				UserID:      userID,
+				DirectoryID: currentID,
+				FileName:    folderName,
+				InnerName:   folderName,
+				StorageKey:  "",
+				MD5:         "",
+				Size:        0,
+				IsFolder:    true,
+				IsActive:    true,
+			}
+			if err := s.store.CreateFile(ctx, folderEntry); err != nil {
+				return 0, err
+			}
+			currentID = newID
+		}
+	}
+
+	return currentID, nil
 }

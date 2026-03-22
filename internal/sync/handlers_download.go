@@ -104,10 +104,16 @@ func (s *Server) handleOssDownload(w http.ResponseWriter, r *http.Request) {
 	}
 	path := string(pathBytes)
 
-	// Verify signature and consume nonce
-	_, _, err = s.authService.VerifySignedURL(r.Context(), signature)
+	// Verify signature and consume nonce, check path matches
+	signedPath, _, err := s.authService.VerifySignedURL(r.Context(), signature)
 	if err != nil {
 		http.Error(w, "invalid or expired signature", http.StatusUnauthorized)
+		return
+	}
+
+	// Verify the path in the signed URL matches the decoded path query param
+	if signedPath != path {
+		http.Error(w, "path mismatch with signed URL", http.StatusBadRequest)
 		return
 	}
 

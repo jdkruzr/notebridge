@@ -7,6 +7,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"strings"
 )
 
 // LocalStore implements BlobStore using the local filesystem.
@@ -27,6 +28,19 @@ func NewLocalStore(rootDir string) *LocalStore {
 func (l *LocalStore) Put(ctx context.Context, key string, r io.Reader) (int64, string, error) {
 	// Construct the final path
 	finalPath := filepath.Join(l.rootDir, key)
+
+	// Validate resolved path is within rootDir (prevent path traversal)
+	absRootDir, err := filepath.Abs(l.rootDir)
+	if err != nil {
+		return 0, "", fmt.Errorf("failed to resolve root directory: %w", err)
+	}
+	absFinalPath, err := filepath.Abs(finalPath)
+	if err != nil {
+		return 0, "", fmt.Errorf("failed to resolve final path: %w", err)
+	}
+	if !strings.HasPrefix(absFinalPath, absRootDir+string(os.PathSeparator)) && absFinalPath != absRootDir {
+		return 0, "", fmt.Errorf("path traversal attempt: %s outside root %s", absFinalPath, absRootDir)
+	}
 
 	// Create parent directories
 	if err := os.MkdirAll(filepath.Dir(finalPath), 0755); err != nil {
@@ -67,6 +81,19 @@ func (l *LocalStore) Put(ctx context.Context, key string, r io.Reader) (int64, s
 // Get opens a file for reading and returns its size.
 func (l *LocalStore) Get(ctx context.Context, key string) (io.ReadCloser, int64, error) {
 	path := filepath.Join(l.rootDir, key)
+
+	// Validate resolved path is within rootDir (prevent path traversal)
+	absRootDir, err := filepath.Abs(l.rootDir)
+	if err != nil {
+		return nil, 0, fmt.Errorf("failed to resolve root directory: %w", err)
+	}
+	absPath, err := filepath.Abs(path)
+	if err != nil {
+		return nil, 0, fmt.Errorf("failed to resolve path: %w", err)
+	}
+	if !strings.HasPrefix(absPath, absRootDir+string(os.PathSeparator)) && absPath != absRootDir {
+		return nil, 0, fmt.Errorf("path traversal attempt: %s outside root %s", absPath, absRootDir)
+	}
 
 	file, err := os.Open(path)
 	if err != nil {

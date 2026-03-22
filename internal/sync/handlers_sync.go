@@ -1,7 +1,10 @@
 package sync
 
 import (
+	"errors"
 	"net/http"
+
+	"github.com/sysop/notebridge/internal/syncdb"
 )
 
 // handleSyncStart handles POST /api/file/2/files/synchronous/start.
@@ -34,7 +37,7 @@ func (s *Server) handleSyncStart(w http.ResponseWriter, r *http.Request) {
 	err = s.store.AcquireLock(r.Context(), userID, equipmentNo)
 	if err != nil {
 		// Check if it's a sync lock conflict
-		if err.Error() == "sync locked by another device" {
+		if errors.Is(err, syncdb.ErrSyncLocked) {
 			jsonError(w, ErrSyncLocked())
 			return
 		}

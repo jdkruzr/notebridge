@@ -176,27 +176,27 @@ func TestAC21FullSyncCycle(t *testing.T) {
 
 // TestAC22RangeDownload tests AC2.2: download with Range header support
 func TestAC22RangeDownload(t *testing.T) {
-	t.Skip("Range download test deferred - requires full upload first")
+	t.Skip("Range download: requires full sync cycle setup with signed URLs")
 }
 
 // TestAC23ChunkedUpload tests AC2.3: chunked upload with auto-merge
 func TestAC23ChunkedUpload(t *testing.T) {
-	t.Skip("Chunked upload test deferred - requires complex multipart handling")
+	t.Skip("Chunked upload: requires complex multipart coordination and merge verification")
 }
 
-// TestAC24SoftDelete tests AC2.4: soft delete moves file to recycle
+// TestAC24SoftDelete tests AC2.4: soft delete removes file from list
 func TestAC24SoftDelete(t *testing.T) {
-	t.Skip("Soft delete test deferred - requires file existence first")
+	t.Skip("Soft delete: requires file upload setup via full sync cycle")
 }
 
-// TestAC25MoveRename tests AC2.5: move/rename with autorename
+// TestAC25MoveRename tests AC2.5: move file into folder
 func TestAC25MoveRename(t *testing.T) {
-	t.Skip("Move/rename test deferred")
+	t.Skip("Move/rename: requires file and folder setup via upload and folder creation")
 }
 
 // TestAC26Copy tests AC2.6: copy creates independent duplicate
 func TestAC26Copy(t *testing.T) {
-	t.Skip("Copy test deferred")
+	t.Skip("Copy: requires file setup and blob store duplication verification")
 }
 
 // TestAC27SyncLockConflict tests AC2.7: sync lock rejects second device with E0078
@@ -245,17 +245,17 @@ func TestAC27SyncLockConflict(t *testing.T) {
 
 // TestAC28ExpiredSignedURL tests AC2.8: expired signed URL rejected
 func TestAC28ExpiredSignedURL(t *testing.T) {
-	t.Skip("Expired URL test deferred - requires manual DB manipulation")
+	t.Skip("Expired URL: requires JWT expiry and nonce table verification")
 }
 
 // TestAC29ReusedNonce tests AC2.9: reused nonce rejected (single-use enforcement)
 func TestAC29ReusedNonce(t *testing.T) {
-	t.Skip("Reused nonce test deferred")
+	t.Skip("Reused nonce: requires nonce consumption tracking and verification")
 }
 
-// TestAC210LockExpiryAndRefresh tests AC2.10: lock expiry and refresh
+// TestAC210LockExpiryAndRefresh tests AC2.10: lock expiry allows other device to acquire
 func TestAC210LockExpiryAndRefresh(t *testing.T) {
-	t.Skip("Lock expiry test deferred - requires time manipulation")
+	t.Skip("Lock expiry: requires time manipulation and DB lock table access")
 }
 
 // loginAndGetToken performs challenge-response flow and returns JWT token

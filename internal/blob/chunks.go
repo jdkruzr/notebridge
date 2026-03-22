@@ -71,20 +71,19 @@ func (cs *ChunkStore) MergeChunks(uploadID string, totalChunks int, destStore Bl
 	defer pr.Close()
 
 	// Run the merge in a goroutine to avoid deadlock
-	var mergeErr error
 	go func() {
 		defer pw.Close()
 		for i := 1; i <= totalChunks; i++ {
 			chunkPath := filepath.Join(uploadDir, fmt.Sprintf("part_%05d", i))
 			chunk, err := os.Open(chunkPath)
 			if err != nil {
-				mergeErr = fmt.Errorf("failed to open chunk %d: %w", i, err)
+				pw.CloseWithError(fmt.Errorf("failed to open chunk %d: %w", i, err))
 				return
 			}
 			_, err = io.Copy(pw, chunk)
 			chunk.Close()
 			if err != nil {
-				mergeErr = fmt.Errorf("failed to copy chunk %d: %w", i, err)
+				pw.CloseWithError(fmt.Errorf("failed to copy chunk %d: %w", i, err))
 				return
 			}
 		}
@@ -94,10 +93,6 @@ func (cs *ChunkStore) MergeChunks(uploadID string, totalChunks int, destStore Bl
 	size, md5hex, err := destStore.Put(nil, destKey, pr)
 	if err != nil {
 		return 0, "", fmt.Errorf("failed to merge chunks into destination: %w", err)
-	}
-
-	if mergeErr != nil {
-		return 0, "", mergeErr
 	}
 
 	// Clean up chunk directory
