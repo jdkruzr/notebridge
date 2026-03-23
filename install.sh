@@ -79,6 +79,7 @@ prompt WEB_PORT "Web UI port" "$DEFAULT_WEB_PORT"
 prompt SYNC_PORT "Device sync API port" "$DEFAULT_SYNC_PORT"
 prompt USER_EMAIL "User email" ""
 prompt_password USER_PASSWORD "Device password"
+prompt WEB_USERNAME "Web UI username" "admin"
 prompt_password WEB_PASSWORD "Web UI password"
 
 echo
@@ -146,7 +147,7 @@ NB_LOG_FORMAT=json
 NB_JWT_SECRET=$(escape_dollars "$JWT_SECRET")
 NB_USER_EMAIL=$USER_EMAIL
 NB_USER_PASSWORD_HASH=$USER_PASSWORD_HASH
-NB_WEB_USERNAME=admin
+NB_WEB_USERNAME=$WEB_USERNAME
 NB_WEB_PASSWORD_HASH=$(escape_dollars "$WEB_PASSWORD_HASH")
 ENVEOF
 ok ".env and notebridge.env created"
