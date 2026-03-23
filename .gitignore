@@ -1,5 +1,7 @@
 /notebridge
 /migrate
+.env
+notebridge.env
 *.db
 *.db-journal
 *.db-wal

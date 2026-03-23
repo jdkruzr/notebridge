@@ -119,11 +119,19 @@ echo
 
 # --- write .env ---
 
-info "Writing configuration to .env"
+info "Writing configuration"
+
+# .env is used by Docker Compose for YAML variable interpolation (ports, volumes).
+# notebridge.env is passed to the container via env_file — values are read as-is,
+# so bcrypt hashes with $ characters work without escaping.
+
 cat > "$SCRIPT_DIR/.env" <<EOF
 NB_DATA_DIR=$DATA_DIR
 NB_WEB_PORT=$WEB_PORT
 NB_SYNC_PORT=$SYNC_PORT
+EOF
+
+cat > "$SCRIPT_DIR/notebridge.env" <<EOF
 NB_DB_PATH=$DATA_DIR/notebridge.db
 NB_STORAGE_PATH=$DATA_DIR/storage
 NB_BACKUP_PATH=$DATA_DIR/backups
@@ -138,7 +146,7 @@ NB_USER_PASSWORD_HASH=$USER_PASSWORD_HASH
 NB_WEB_USERNAME=admin
 NB_WEB_PASSWORD_HASH=$WEB_PASSWORD_HASH
 EOF
-ok ".env created"
+ok ".env and notebridge.env created"
 
 echo
 

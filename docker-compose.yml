@@ -20,4 +20,4 @@ services:
       - NB_BLOB_STORE_PATH=/data/storage
       - NB_CHUNK_STORE_PATH=/data/storage/chunks
     env_file:
-      - .env
+      - notebridge.env
