@@ -122,8 +122,11 @@ echo
 info "Writing configuration"
 
 # .env is used by Docker Compose for YAML variable interpolation (ports, volumes).
-# notebridge.env is passed to the container via env_file — values are read as-is,
-# so bcrypt hashes with $ characters work without escaping.
+# notebridge.env is passed to the container via env_file. Docker Compose
+# interprets $ in env_file values too, so we must double $ → $$ for any
+# value that contains literal $ (bcrypt hashes, JWT secrets).
+
+escape_dollars() { sed 's/\$/\$\$/g' <<<"$1"; }
 
 cat > "$SCRIPT_DIR/.env" <<EOF
 NB_DATA_DIR=$DATA_DIR
@@ -131,7 +134,7 @@ NB_WEB_PORT=$WEB_PORT
 NB_SYNC_PORT=$SYNC_PORT
 EOF
 
-cat > "$SCRIPT_DIR/notebridge.env" <<EOF
+cat > "$SCRIPT_DIR/notebridge.env" <<ENVEOF
 NB_DB_PATH=$DATA_DIR/notebridge.db
 NB_STORAGE_PATH=$DATA_DIR/storage
 NB_BACKUP_PATH=$DATA_DIR/backups
@@ -140,12 +143,12 @@ NB_WEB_LISTEN_ADDR=:8443
 NB_SYNC_LISTEN_ADDR=:19071
 NB_LOG_LEVEL=info
 NB_LOG_FORMAT=json
-NB_JWT_SECRET=$JWT_SECRET
+NB_JWT_SECRET=$(escape_dollars "$JWT_SECRET")
 NB_USER_EMAIL=$USER_EMAIL
 NB_USER_PASSWORD_HASH=$USER_PASSWORD_HASH
 NB_WEB_USERNAME=admin
-NB_WEB_PASSWORD_HASH=$WEB_PASSWORD_HASH
-EOF
+NB_WEB_PASSWORD_HASH=$(escape_dollars "$WEB_PASSWORD_HASH")
+ENVEOF
 ok ".env and notebridge.env created"
 
 echo
