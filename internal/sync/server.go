@@ -59,12 +59,27 @@ func (s *Server) Handler() http.Handler {
 	mux := http.NewServeMux()
 
 	// Public endpoints (no auth required)
-	// Auth endpoints wrapped with rate limiting
+	// Server connectivity check — tablet calls this first before auth
+	mux.HandleFunc("GET /api/file/query/server", s.handleQueryServer)
+
+	// Auth endpoints (SPC-compatible paths) wrapped with rate limiting
+	mux.Handle("POST /api/official/user/query/random/code",
+		RateLimitMiddleware(s.rateLimiter)(http.HandlerFunc(s.handleChallenge)))
+	mux.Handle("POST /api/official/user/account/login/equipment",
+		RateLimitMiddleware(s.rateLimiter)(http.HandlerFunc(s.handleLoginVerify)))
+
+	// Legacy auth paths (kept for compatibility with tests and direct API use)
 	mux.Handle("POST /api/user/login/challenge",
 		RateLimitMiddleware(s.rateLimiter)(http.HandlerFunc(s.handleChallenge)))
-
 	mux.Handle("POST /api/user/login/verify",
 		RateLimitMiddleware(s.rateLimiter)(http.HandlerFunc(s.handleLoginVerify)))
+
+	// User existence check (public, no auth)
+	mux.HandleFunc("POST /api/official/user/check/exists/server", s.handleCheckUserExists)
+
+	// Equipment binding (public during initial setup)
+	mux.HandleFunc("POST /api/terminal/user/bindEquipment", s.handleBindEquipment)
+	mux.HandleFunc("POST /api/terminal/equipment/unlink", s.handleUnbindEquipment)
 
 	mux.HandleFunc("GET /health", s.handleHealth)
 
@@ -96,6 +111,11 @@ func (s *Server) Handler() http.Handler {
 	mux.HandleFunc("POST /api/file/3/files/move_v3", s.handleMoveV3)
 	mux.HandleFunc("POST /api/file/3/files/copy_v3", s.handleCopyV3)
 	mux.HandleFunc("POST /api/file/3/files/space_usage", s.handleSpaceUsage)
+	mux.HandleFunc("POST /api/file/2/users/get_space_usage", s.handleSpaceUsage) // alternate SPC path
+
+	// User profile endpoints (auth required)
+	mux.HandleFunc("POST /api/user/query", s.handleUserQuery)
+	mux.HandleFunc("POST /api/user/logout", s.handleUserLogout)
 
 	// Task endpoints (auth required)
 	mux.HandleFunc("POST /api/file/schedule/group", s.handleCreateScheduleGroup)

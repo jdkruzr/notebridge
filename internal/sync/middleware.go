@@ -72,8 +72,17 @@ func AuthMiddleware(authService *AuthService) func(http.Handler) http.Handler {
 func isPublicEndpoint(path string) bool {
 	// Add public endpoints here as needed
 	publicPaths := map[string]bool{
+		// SPC-compatible auth paths (tablet uses these)
+		"/api/file/query/server":                       true,
+		"/api/official/user/query/random/code":          true,
+		"/api/official/user/account/login/equipment":    true,
+		"/api/official/user/check/exists/server":        true,
+		"/api/terminal/user/bindEquipment":              true,
+		"/api/terminal/equipment/unlink":                true,
+		// Legacy auth paths
 		"/api/user/login/challenge": true,
 		"/api/user/login/verify":    true,
+		// Infrastructure
 		"/health":                   true,
 		"/api/oss/download":         true, // Signed URL verification instead of JWT
 		"/api/oss/upload":           true, // Signed URL verification instead of JWT

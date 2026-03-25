@@ -225,6 +225,30 @@ func (s *Store) EnsureUser(ctx context.Context, email, passwordHash string, snow
 	return err
 }
 
+// GetUserByID retrieves a user by ID. Returns nil if not found (not an error).
+func (s *Store) GetUserByID(ctx context.Context, id int64) (*User, error) {
+	query := `
+		SELECT id, email, password_hash, COALESCE(error_count, 0), last_error_at, locked_until
+		FROM users
+		WHERE id = ?
+	`
+	var user User
+	var lastErrorAtStr sql.NullString
+	var lockedUntilStr sql.NullString
+
+	err := s.db.QueryRowContext(ctx, query, id).Scan(
+		&user.ID, &user.Email, &user.PasswordHash, &user.ErrorCount,
+		&lastErrorAtStr, &lockedUntilStr,
+	)
+	if err == sql.ErrNoRows {
+		return nil, nil
+	}
+	if err != nil {
+		return nil, err
+	}
+	return &user, nil
+}
+
 // GetUserByEmail retrieves a user by email. Returns nil if not found (not an error).
 func (s *Store) GetUserByEmail(ctx context.Context, email string) (*User, error) {
 	query := `
