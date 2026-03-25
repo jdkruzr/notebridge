@@ -3,6 +3,7 @@ package sync
 import (
 	"log/slog"
 	"net/http"
+	"strings"
 
 	"github.com/sysop/notebridge/internal/blob"
 	"github.com/sysop/notebridge/internal/events"
@@ -21,6 +22,7 @@ type Server struct {
 	eventBus    *events.EventBus
 	notifier    *NotifyManager
 	rateLimiter *RateLimiter
+	baseURL     string
 }
 
 // NewServer creates a new Server instance.
@@ -34,6 +36,7 @@ func NewServer(
 	eventBus *events.EventBus,
 	notifier *NotifyManager,
 	rateLimiter *RateLimiter,
+	baseURL string,
 ) *Server {
 	return &Server{
 		store:       store,
@@ -45,6 +48,7 @@ func NewServer(
 		eventBus:    eventBus,
 		notifier:    notifier,
 		rateLimiter: rateLimiter,
+		baseURL:     strings.TrimRight(baseURL, "/"),
 	}
 }
 

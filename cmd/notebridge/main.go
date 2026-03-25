@@ -118,7 +118,7 @@ func main() {
 	defer rateLimiter.Stop()
 
 	// Create sync.Server
-	server := sync.NewServer(store, authService, blobStore, chunkStore, snowflake, logger, eventBus, notifier, rateLimiter)
+	server := sync.NewServer(store, authService, blobStore, chunkStore, snowflake, logger, eventBus, notifier, rateLimiter, cfg.BaseURL)
 
 	// Subscribe notifier to file events and broadcast ServerMessage to connected clients
 	eventTypes := []string{events.FileUploaded, events.FileModified, events.FileDeleted}

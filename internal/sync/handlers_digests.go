@@ -588,22 +588,26 @@ func (s *Server) handleUploadSummaryApply(w http.ResponseWriter, r *http.Request
 	// Inner name is just the file name for simplicity
 	innerName := fileName
 
-	// Generate signed URLs
-	fullUploadURL, err := s.authService.GenerateSignedURL(r.Context(), innerName, "upload", time.Hour)
+	// Generate signed tokens
+	uploadToken, err := s.authService.GenerateSignedURL(r.Context(), innerName, "upload", time.Hour)
 	if err != nil {
 		s.logger.Error("failed to generate upload URL", "error", err)
 		jsonError(w, ErrInternal("internal server error"))
 		return
 	}
 
-	partUploadURL, err := s.authService.GenerateSignedURL(r.Context(), innerName, "upload_part", time.Hour)
+	partUploadToken, err := s.authService.GenerateSignedURL(r.Context(), innerName, "upload_part", time.Hour)
 	if err != nil {
 		s.logger.Error("failed to generate upload URL", "error", err)
 		jsonError(w, ErrInternal("internal server error"))
 		return
 	}
 
-	// Return success with URLs
+	// Format as absolute URLs — the tablet follows these directly
+	encodedPath := base64PathEncode("summaries/" + innerName)
+	fullUploadURL := s.baseURL + "/api/oss/upload?signature=" + uploadToken + "&path=" + encodedPath
+	partUploadURL := s.baseURL + "/api/oss/upload/part?signature=" + partUploadToken + "&path=" + encodedPath
+
 	jsonSuccess(w, map[string]interface{}{
 		"fullUploadUrl": fullUploadURL,
 		"partUploadUrl": partUploadURL,
@@ -656,15 +660,17 @@ func (s *Server) handleDownloadSummary(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Generate signed download URL
-	downloadURL, err := s.authService.GenerateSignedURL(r.Context(), summary.HandwriteInnerName, "download", time.Hour)
+	// Generate signed download token
+	downloadToken, err := s.authService.GenerateSignedURL(r.Context(), summary.HandwriteInnerName, "download", time.Hour)
 	if err != nil {
 		s.logger.Error("failed to generate download URL", "error", err)
 		jsonError(w, ErrInternal("internal server error"))
 		return
 	}
 
-	// Return success with URL
+	// Format as absolute URL
+	downloadURL := s.baseURL + "/api/oss/download?signature=" + downloadToken + "&path=" + base64PathEncode("summaries/"+summary.HandwriteInnerName)
+
 	jsonSuccess(w, map[string]interface{}{
 		"url": downloadURL,
 	})

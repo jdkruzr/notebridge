@@ -19,6 +19,7 @@ type Config struct {
 	ChunkStorePath string
 
 	// Network
+	BaseURL        string // External URL tablets use to reach this server (e.g. https://notebridge.example.com)
 	SyncListenAddr string
 
 	// Logging
@@ -93,6 +94,7 @@ func Load() (*Config, error) {
 		CachePath:        envOrDefault("NB_CACHE_PATH", "/data/cache"),
 		BlobStorePath:    envOrDefault("NB_BLOB_STORE_PATH", "/data/storage"),
 		ChunkStorePath:   envOrDefault("NB_CHUNK_STORE_PATH", "/data/storage/chunks"),
+		BaseURL:          os.Getenv("NB_BASE_URL"),
 		SyncListenAddr:   envOrDefault("NB_SYNC_LISTEN_ADDR", ":19072"),
 		LogLevel:         envOrDefault("NB_LOG_LEVEL", "info"),
 		LogFormat:        envOrDefault("NB_LOG_FORMAT", "json"),
@@ -114,6 +116,15 @@ func Load() (*Config, error) {
 		OCRMaxFileMB:     ocrMaxFileMB,
 		CalDAVCollectionName: envOrDefault("NB_CALDAV_COLLECTION_NAME", "Supernote Tasks"),
 		DueTimeMode:      envOrDefault("NB_DUE_TIME_MODE", "preserve"),
+	}
+
+	// Derive BaseURL from listen address if not explicitly set
+	if cfg.BaseURL == "" {
+		port := cfg.SyncListenAddr
+		if len(port) > 0 && port[0] == ':' {
+			port = port[1:]
+		}
+		cfg.BaseURL = fmt.Sprintf("http://localhost:%s", port)
 	}
 
 	// Validate required fields

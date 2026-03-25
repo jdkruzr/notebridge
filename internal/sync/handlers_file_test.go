@@ -98,7 +98,7 @@ func TestAC21FullSyncCycle(t *testing.T) {
 
 	// Step 5: POST oss/upload with file content
 	fileContent := []byte("test file content")
-	fullUploadURL := server.URL + uploadURL
+	fullUploadURL := uploadURL // URL is already absolute
 	resp, err = uploadFileWithURL(t, fullUploadURL, "test.note", fileContent)
 	if err != nil {
 		t.Fatalf("oss/upload failed: %v", err)
@@ -210,7 +210,7 @@ func TestAC22RangeDownload(t *testing.T) {
 	json.NewDecoder(resp.Body).Decode(&uploadApplyResp)
 	resp.Body.Close()
 
-	uploadURL := server.URL + uploadApplyResp["fullUploadUrl"].(string)
+	uploadURL := uploadApplyResp["fullUploadUrl"].(string)
 
 	// Upload file with known content
 	fileContent := []byte("0123456789abcdefghijklmnopqrstuvwxyz")
@@ -353,7 +353,7 @@ func TestAC23ChunkedUpload(t *testing.T) {
 	json.NewDecoder(resp.Body).Decode(&uploadApplyResp)
 	resp.Body.Close()
 
-	partUploadURL := server.URL + uploadApplyResp["partUploadUrl"].(string)
+	partUploadURL := uploadApplyResp["partUploadUrl"].(string)
 
 	// Step 3: Upload first chunk
 	uploadID := "upload-" + fmt.Sprintf("%d", time.Now().UnixNano())
@@ -465,7 +465,7 @@ func TestAC24SoftDelete(t *testing.T) {
 	json.NewDecoder(resp.Body).Decode(&uploadApplyResp)
 	resp.Body.Close()
 
-	uploadURL := server.URL + uploadApplyResp["fullUploadUrl"].(string)
+	uploadURL := uploadApplyResp["fullUploadUrl"].(string)
 	fileContent := []byte("file to delete")
 	resp, err = uploadFileWithURL(t, uploadURL, "todelete.note", fileContent)
 	if err != nil {
@@ -595,7 +595,7 @@ func TestAC25MoveRename(t *testing.T) {
 	json.NewDecoder(resp.Body).Decode(&uploadApplyResp)
 	resp.Body.Close()
 
-	uploadURL := server.URL + uploadApplyResp["fullUploadUrl"].(string)
+	uploadURL := uploadApplyResp["fullUploadUrl"].(string)
 	fileContent := []byte("file to move")
 	resp, err = uploadFileWithURL(t, uploadURL, "tomove.note", fileContent)
 	if err != nil {
@@ -738,7 +738,7 @@ func TestAC26Copy(t *testing.T) {
 	json.NewDecoder(resp.Body).Decode(&uploadApplyResp)
 	resp.Body.Close()
 
-	uploadURL := server.URL + uploadApplyResp["fullUploadUrl"].(string)
+	uploadURL := uploadApplyResp["fullUploadUrl"].(string)
 	fileContent := []byte("original file content")
 	resp, err = uploadFileWithURL(t, uploadURL, "tocopy.note", fileContent)
 	if err != nil {
@@ -941,7 +941,7 @@ func TestAC28ExpiredSignedURL(t *testing.T) {
 	json.NewDecoder(resp.Body).Decode(&uploadApplyResp)
 	resp.Body.Close()
 
-	uploadURL := server.URL + uploadApplyResp["fullUploadUrl"].(string)
+	uploadURL := uploadApplyResp["fullUploadUrl"].(string)
 
 	// Step 2: Attempt to use the signed URL twice (second use should fail - nonce consumed)
 	fileContent := []byte("test content")
@@ -1012,7 +1012,7 @@ func TestAC29ReusedNonce(t *testing.T) {
 	json.NewDecoder(resp.Body).Decode(&uploadApplyResp)
 	resp.Body.Close()
 
-	uploadURL := server.URL + uploadApplyResp["fullUploadUrl"].(string)
+	uploadURL := uploadApplyResp["fullUploadUrl"].(string)
 
 	// Step 2: First upload should succeed
 	fileContent := []byte("first upload")

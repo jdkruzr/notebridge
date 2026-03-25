@@ -65,10 +65,14 @@ func setupTestServer(t *testing.T) (*httptest.Server, *syncdb.Store) {
 		rateLimiter.Stop()
 	})
 
-	server := NewServer(store, authService, blobStore, chunkStore, snowflake, logger, eventBus, notifier, rateLimiter)
+	// Create server with placeholder baseURL — updated after httptest.Server starts
+	server := NewServer(store, authService, blobStore, chunkStore, snowflake, logger, eventBus, notifier, rateLimiter, "")
 
 	// Create httptest.Server with the handler
 	httpServer := httptest.NewServer(server.Handler())
+
+	// Set baseURL to the test server's URL so absolute URLs resolve correctly
+	server.baseURL = httpServer.URL
 
 	// Store server in cleanup
 	t.Cleanup(func() {

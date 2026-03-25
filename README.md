@@ -60,6 +60,7 @@ All settings via environment variables with `NB_` prefix. The installer writes t
 | `NB_USER_EMAIL` | Yes | Device login email |
 | `NB_USER_PASSWORD_HASH` | Yes | MD5 hash of device password |
 | `NB_WEB_PASSWORD_HASH` | Yes | Bcrypt hash for web UI |
+| `NB_BASE_URL` | Yes* | External URL tablets use to reach this server (e.g. `https://notebridge.example.com`) |
 | `NB_STORAGE_PATH` | No | Blob storage directory (default: `/data/storage`) |
 | `NB_DB_PATH` | No | SQLite database path (default: `/data/notebridge.db`) |
 | `NB_SYNC_PORT` | No | Server port (default: `19072`) |

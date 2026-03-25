@@ -75,6 +75,7 @@ echo
 
 prompt DATA_DIR "Data directory" "$DEFAULT_DATA_DIR"
 prompt SYNC_PORT "Server port" "$DEFAULT_PORT"
+prompt BASE_URL "External URL (tablet connects to this)" ""
 prompt USER_EMAIL "User email" ""
 prompt_password USER_PASSWORD "Device password"
 prompt WEB_USERNAME "Web UI username" "admin"
@@ -137,6 +138,7 @@ NB_DB_PATH=$DATA_DIR/notebridge.db
 NB_STORAGE_PATH=$DATA_DIR/storage
 NB_BACKUP_PATH=$DATA_DIR/backups
 NB_CACHE_PATH=$DATA_DIR/cache
+NB_BASE_URL=$BASE_URL
 NB_SYNC_LISTEN_ADDR=:$SYNC_PORT
 NB_LOG_LEVEL=info
 NB_LOG_FORMAT=json

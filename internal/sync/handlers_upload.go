@@ -65,10 +65,10 @@ func (s *Server) handleUploadApply(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Format as full URLs (these are used directly by the client)
-	// The OSS handler will verify the signature
-	uploadURL := "/api/oss/upload?signature=" + uploadToken + "&path=" + base64PathEncode(filePath+"/"+fileName)
-	partUploadURL := "/api/oss/upload/part?signature=" + partUploadToken + "&path=" + base64PathEncode(filePath+"/"+fileName)
+	// Format as absolute URLs — the tablet follows these directly
+	encodedPath := base64PathEncode(filePath + "/" + fileName)
+	uploadURL := s.baseURL + "/api/oss/upload?signature=" + uploadToken + "&path=" + encodedPath
+	partUploadURL := s.baseURL + "/api/oss/upload/part?signature=" + partUploadToken + "&path=" + encodedPath
 
 	// Return success with URLs
 	jsonSuccess(w, map[string]interface{}{

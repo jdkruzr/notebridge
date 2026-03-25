@@ -66,8 +66,8 @@ func (s *Server) handleDownloadV3(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Format as full URL (same format as upload: /api/oss/download?signature={token}&path={path})
-	downloadURL := "/api/oss/download?signature=" + downloadToken + "&path=" + base64PathEncode(file.StorageKey)
+	// Format as absolute URL — the tablet follows this directly
+	downloadURL := s.baseURL + "/api/oss/download?signature=" + downloadToken + "&path=" + base64PathEncode(file.StorageKey)
 
 	// Return success with download metadata
 	jsonSuccess(w, map[string]interface{}{
