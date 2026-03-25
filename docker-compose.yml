@@ -5,7 +5,7 @@ services:
     restart: unless-stopped
     ports:
       - "${NB_WEB_PORT:-8443}:8443"
-      - "${NB_SYNC_PORT:-19071}:19071"
+      - "${NB_SYNC_PORT:-19072}:19072"
     volumes:
       - ${NB_DATA_DIR:-/data/notebridge}:/data
     environment:

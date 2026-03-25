@@ -17,7 +17,7 @@ This test plan covers manual verification steps that cannot be fully validated b
 - [ ] Verify `.env` is created with `NB_USER_EMAIL`, `NB_USER_PASSWORD_HASH`, `NB_WEB_PASSWORD_HASH`
 - [ ] Run `./rebuild.sh` — verify Docker image builds successfully (CGO_ENABLED=0)
 - [ ] Verify container starts and both servers bind:
-  - Sync server on port 19071
+  - Sync server on port 19072
   - Web server on port 8443
 - [ ] Verify SQLite database is created at `/data/notebridge.db` with WAL mode
 - [ ] Verify storage directory exists at `/data/storage/`

@@ -95,7 +95,7 @@ func Load() (*Config, error) {
 		BlobStorePath:    envOrDefault("NB_BLOB_STORE_PATH", "/data/storage"),
 		ChunkStorePath:   envOrDefault("NB_CHUNK_STORE_PATH", "/data/storage/chunks"),
 		WebListenAddr:    envOrDefault("NB_WEB_LISTEN_ADDR", ":8443"),
-		SyncListenAddr:   envOrDefault("NB_SYNC_LISTEN_ADDR", ":19071"),
+		SyncListenAddr:   envOrDefault("NB_SYNC_LISTEN_ADDR", ":19072"),
 		LogLevel:         envOrDefault("NB_LOG_LEVEL", "info"),
 		LogFormat:        envOrDefault("NB_LOG_FORMAT", "json"),
 		LogFile:          os.Getenv("NB_LOG_FILE"),

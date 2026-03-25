@@ -47,7 +47,7 @@ Drop-in replacement for Supernote Private Cloud (SPC). Single Go binary that han
 ## Architecture
 
 Two HTTP servers run concurrently:
-- **Sync server** (default :19071) - Device-facing API matching SPC protocol
+- **Sync server** (default :19072) - Device-facing API matching SPC protocol
 - **Web server** (default :8443) - Human-facing web UI + CalDAV endpoint
 
 Both share the same SQLite database (single-writer, WAL mode) and event bus.
