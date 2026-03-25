@@ -11,5 +11,5 @@ FROM alpine:3.20
 RUN apk add --no-cache ca-certificates tzdata
 COPY --from=builder /notebridge /usr/local/bin/notebridge
 
-EXPOSE 8443 19072
+EXPOSE 19072
 ENTRYPOINT ["notebridge"]

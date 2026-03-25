@@ -6,8 +6,7 @@ set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 DEFAULT_DATA_DIR="/data/notebridge"
-DEFAULT_WEB_PORT="8443"
-DEFAULT_SYNC_PORT="19072"
+DEFAULT_PORT="19072"
 
 # --- helpers ---
 
@@ -75,8 +74,7 @@ info "Configuration"
 echo
 
 prompt DATA_DIR "Data directory" "$DEFAULT_DATA_DIR"
-prompt WEB_PORT "Web UI port" "$DEFAULT_WEB_PORT"
-prompt SYNC_PORT "Device sync API port" "$DEFAULT_SYNC_PORT"
+prompt SYNC_PORT "Server port" "$DEFAULT_PORT"
 prompt USER_EMAIL "User email" ""
 prompt_password USER_PASSWORD "Device password"
 prompt WEB_USERNAME "Web UI username" "admin"
@@ -131,7 +129,6 @@ escape_dollars() { sed 's/\$/\$\$/g' <<<"$1"; }
 
 cat > "$SCRIPT_DIR/.env" <<EOF
 NB_DATA_DIR=$DATA_DIR
-NB_WEB_PORT=$WEB_PORT
 NB_SYNC_PORT=$SYNC_PORT
 EOF
 
@@ -140,8 +137,7 @@ NB_DB_PATH=$DATA_DIR/notebridge.db
 NB_STORAGE_PATH=$DATA_DIR/storage
 NB_BACKUP_PATH=$DATA_DIR/backups
 NB_CACHE_PATH=$DATA_DIR/cache
-NB_WEB_LISTEN_ADDR=:8443
-NB_SYNC_LISTEN_ADDR=:19072
+NB_SYNC_LISTEN_ADDR=:$SYNC_PORT
 NB_LOG_LEVEL=info
 NB_LOG_FORMAT=json
 NB_JWT_SECRET=$(escape_dollars "$JWT_SECRET")
@@ -181,5 +177,6 @@ fi
 echo
 
 info "NoteBridge installed successfully!"
-echo "Web UI: http://localhost:${WEB_PORT}"
-echo "Sync API: http://localhost:${SYNC_PORT}"
+echo "Server: http://localhost:${SYNC_PORT}"
+echo "Web UI: http://localhost:${SYNC_PORT} (Basic Auth: ${WEB_USERNAME})"
+echo "Device sync: point your Supernote to http://<this-server>:${SYNC_PORT}"

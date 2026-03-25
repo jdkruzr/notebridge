@@ -238,43 +238,32 @@ func main() {
 	// Create web handler for file browser, jobs, search
 	webHandler := web.NewHandler(taskStore, caldavNotifier, noteStore, searchIndex, proc, pipe, logger, broadcaster)
 
-	// Create web server mux with protected handlers
-	webMux := http.NewServeMux()
-	webMux.Handle("/caldav/", webAuth.Wrap(caldavHandler))
-	webMux.Handle("/", webAuth.Wrap(webHandler))
-	webMux.HandleFunc("GET /health", handleHealth)
+	// Build unified mux matching SPC's Nginx routing:
+	//   /api/*        -> sync server (device auth)
+	//   /socket.io/*  -> sync server (WebSocket, own auth via query params)
+	//   /caldav/*     -> CalDAV backend (Basic Auth)
+	//   /*            -> web UI (Basic Auth)
+	syncHandler := server.Handler()
 
-	// Create web server with graceful shutdown support
-	webServer := &http.Server{
-		Addr:         cfg.WebListenAddr,
-		Handler:      webMux,
-		ReadTimeout:  15 * time.Second,
-		WriteTimeout: 15 * time.Second,
-		IdleTimeout:  60 * time.Second,
-	}
+	unifiedMux := http.NewServeMux()
+	unifiedMux.Handle("/api/", syncHandler)
+	unifiedMux.Handle("/socket.io/", syncHandler)
+	unifiedMux.Handle("/caldav/", webAuth.Wrap(caldavHandler))
+	unifiedMux.HandleFunc("GET /health", handleHealth)
+	unifiedMux.Handle("/", webAuth.Wrap(webHandler))
 
-	// Start web server in a goroutine
-	go func() {
-		logger.Info("web server starting", "addr", cfg.WebListenAddr)
-		if err := webServer.ListenAndServe(); err != nil && err != http.ErrServerClosed {
-			logger.Error("web server failed", "error", err)
-		}
-	}()
-
-	// Create HTTP server
 	httpServer := &http.Server{
 		Addr:         cfg.SyncListenAddr,
-		Handler:      server.Handler(),
+		Handler:      unifiedMux,
 		ReadTimeout:  15 * time.Second,
 		WriteTimeout: 15 * time.Second,
 		IdleTimeout:  60 * time.Second,
 	}
 
-	// Start HTTP server in a goroutine
 	go func() {
-		logger.Info("starting sync server", "addr", cfg.SyncListenAddr)
+		logger.Info("server starting", "addr", cfg.SyncListenAddr)
 		if err := httpServer.ListenAndServe(); err != nil && err != http.ErrServerClosed {
-			logger.Error("http server error", "error", err)
+			logger.Error("server error", "error", err)
 		}
 	}()
 
@@ -289,18 +278,12 @@ func main() {
 	shutdownCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 
-	// Shutdown both web server (CalDAV) and sync server
-	if err := webServer.Shutdown(shutdownCtx); err != nil {
-		logger.Error("failed to shutdown web server", "error", err)
-		os.Exit(1)
-	}
-
 	if err := httpServer.Shutdown(shutdownCtx); err != nil {
-		logger.Error("failed to shutdown http server", "error", err)
+		logger.Error("failed to shutdown server", "error", err)
 		os.Exit(1)
 	}
 
-	logger.Info("servers stopped gracefully")
+	logger.Info("server stopped gracefully")
 }
 
 // storageKeyFromPath converts an absolute blob path to the storage key.

@@ -32,14 +32,16 @@ After install, point your Supernote tablet's Private Cloud setting to `http://<y
 
 ## Architecture
 
-Two HTTP servers in one binary:
+Single HTTP server on port 19072 (matching SPC's port), routing by path:
 
-| Server | Default Port | Purpose |
-|--------|-------------|---------|
-| Sync   | 19072       | Device-facing API (SPC protocol) |
-| Web    | 8443        | Web UI + CalDAV endpoint |
+| Path | Purpose |
+|------|---------|
+| `/api/*` | Device sync API (SPC protocol) |
+| `/socket.io/*` | WebSocket push notifications |
+| `/caldav/*` | CalDAV task sync (Basic Auth) |
+| `/*` | Web UI (Basic Auth) |
 
-Both share a single SQLite database (WAL mode) and an in-process event bus.
+All backed by a single SQLite database (WAL mode) and an in-process event bus.
 
 ```
 Device  ──sync API──▶  NoteBridge  ──event bus──▶  OCR Pipeline
@@ -60,8 +62,7 @@ All settings via environment variables with `NB_` prefix. The installer writes t
 | `NB_WEB_PASSWORD_HASH` | Yes | Bcrypt hash for web UI |
 | `NB_STORAGE_PATH` | No | Blob storage directory (default: `/data/storage`) |
 | `NB_DB_PATH` | No | SQLite database path (default: `/data/notebridge.db`) |
-| `NB_SYNC_PORT` | No | Sync server port (default: `19072`) |
-| `NB_WEB_PORT` | No | Web server port (default: `8443`) |
+| `NB_SYNC_PORT` | No | Server port (default: `19072`) |
 | `NB_LOG_LEVEL` | No | Log level: debug, info, warn, error (default: `info`) |
 
 ## Migrating from SPC

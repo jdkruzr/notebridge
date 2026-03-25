@@ -16,15 +16,15 @@ sudo docker compose -f "$SCRIPT_DIR/docker-compose.yml" up -d --build --force-re
     || fail "Build/restart failed"
 ok "Container running"
 
-# Read web port from .env or default
-WEB_PORT=$(grep -oP '^NB_WEB_PORT=\K.*' "$SCRIPT_DIR/.env" 2>/dev/null || echo "8443")
+# Read port from .env or default
+PORT=$(grep -oP '^NB_SYNC_PORT=\K.*' "$SCRIPT_DIR/.env" 2>/dev/null || echo "19072")
 
 sleep 2
-if curl -sf "http://localhost:${WEB_PORT}/health" >/dev/null 2>&1; then
+if curl -sf "http://localhost:${PORT}/health" >/dev/null 2>&1; then
     ok "Health check passed"
 else
     sleep 3
-    if curl -sf "http://localhost:${WEB_PORT}/health" >/dev/null 2>&1; then
+    if curl -sf "http://localhost:${PORT}/health" >/dev/null 2>&1; then
         ok "Health check passed"
     else
         fail "Health check failed. Run: sudo docker logs notebridge"

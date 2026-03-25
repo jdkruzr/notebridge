@@ -46,11 +46,13 @@ Drop-in replacement for Supernote Private Cloud (SPC). Single Go binary that han
 
 ## Architecture
 
-Two HTTP servers run concurrently:
-- **Sync server** (default :19072) - Device-facing API matching SPC protocol
-- **Web server** (default :8443) - Human-facing web UI + CalDAV endpoint
+Single HTTP server (default :19072) serves all traffic, matching SPC's single-port architecture:
+- `/api/*` — Device sync API (challenge-response auth, JWT)
+- `/socket.io/*` — WebSocket push notifications (own auth via query params)
+- `/caldav/*` — CalDAV endpoint (Basic Auth)
+- `/*` — Web UI: file browser, search, tasks, jobs, logs (Basic Auth)
 
-Both share the same SQLite database (single-writer, WAL mode) and event bus.
+SQLite database (single-writer, WAL mode) and in-process event bus shared across all subsystems.
 
 ### Data Flow
 
