@@ -173,39 +173,39 @@ type TaskUpdate struct {
 
 // Summary represents a digest/summary item.
 type Summary struct {
-	ID                      int64
-	UserID                  int64
-	UniqueIdentifier        string
-	Name                    string
-	Description             string
-	FileID                  int64
-	ParentUniqueIdentifier  string
-	Content                 string
-	DataSource              string
-	SourcePath              string
-	SourceType              string
-	Tags                    string
-	MD5Hash                 string
-	HandwriteMD5            string
-	HandwriteInnerName      string
-	Metadata                string
-	CommentFields           string
-	HandwriteFields         string
-	CommentHandwriteName    string
-	IsSummaryGroup          string
-	Author                  string
-	CreationTime            int64
-	LastModifiedTime        int64
+	ID                      int64  `json:"id"`
+	UserID                  int64  `json:"userId"`
+	UniqueIdentifier        string `json:"uniqueIdentifier"`
+	Name                    string `json:"name"`
+	Description             string `json:"description"`
+	FileID                  int64  `json:"fileId"`
+	ParentUniqueIdentifier  string `json:"parentUniqueIdentifier"`
+	Content                 string `json:"content"`
+	DataSource              string `json:"dataSource"`
+	SourcePath              string `json:"sourcePath"`
+	SourceType              string `json:"sourceType"`
+	Tags                    string `json:"tags"`
+	MD5Hash                 string `json:"md5Hash"`
+	HandwriteMD5            string `json:"handwriteMd5"`
+	HandwriteInnerName      string `json:"handwriteInnerName"`
+	Metadata                string `json:"metadata"`
+	CommentFields           string `json:"commentFields"`
+	HandwriteFields         string `json:"handwriteFields"`
+	CommentHandwriteName    string `json:"commentHandwriteName"`
+	IsSummaryGroup          string `json:"isSummaryGroup"`
+	Author                  string `json:"author"`
+	CreationTime            int64  `json:"creationTime"`
+	LastModifiedTime        int64  `json:"lastModifiedTime"`
 }
 
 // SummaryHash represents lightweight summary hash data.
 type SummaryHash struct {
-	ID                   int64
-	MD5Hash              string
-	HandwriteMD5         string
-	CommentHandwriteName string
-	LastModifiedTime     int64
-	Metadata             string
+	ID                   int64  `json:"id"`
+	MD5Hash              string `json:"md5Hash"`
+	HandwriteMD5         string `json:"handwriteMd5"`
+	CommentHandwriteName string `json:"commentHandwriteName"`
+	LastModifiedTime     int64  `json:"lastModifiedTime"`
+	Metadata             string `json:"metadata"`
 }
 
 // NewStore creates a new Store instance.
