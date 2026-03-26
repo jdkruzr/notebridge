@@ -92,38 +92,38 @@ CREATE TABLE IF NOT EXISTS url_nonces (
 	expires_at DATETIME NOT NULL
 );
 
--- File Catalog
+-- File Catalog (NOT NULL DEFAULT on all columns to prevent NULL scan errors)
 CREATE TABLE IF NOT EXISTS files (
 	id INTEGER PRIMARY KEY,
 	user_id INTEGER NOT NULL,
-	directory_id INTEGER,
+	directory_id INTEGER NOT NULL DEFAULT 0,
 	file_name TEXT NOT NULL,
-	inner_name TEXT,
-	storage_key TEXT,
-	md5 TEXT,
-	size INTEGER,
-	is_folder TEXT DEFAULT 'N',
-	is_active TEXT DEFAULT 'Y',
-	created_at DATETIME,
-	updated_at DATETIME,
+	inner_name TEXT NOT NULL DEFAULT '',
+	storage_key TEXT NOT NULL DEFAULT '',
+	md5 TEXT NOT NULL DEFAULT '',
+	size INTEGER NOT NULL DEFAULT 0,
+	is_folder TEXT NOT NULL DEFAULT 'N',
+	is_active TEXT NOT NULL DEFAULT 'Y',
+	created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+	updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
 	FOREIGN KEY (user_id) REFERENCES users(id)
 );
 
 CREATE TABLE IF NOT EXISTS recycle_files (
 	id INTEGER PRIMARY KEY,
 	user_id INTEGER NOT NULL,
-	directory_id INTEGER,
+	directory_id INTEGER NOT NULL DEFAULT 0,
 	file_name TEXT NOT NULL,
-	inner_name TEXT,
-	storage_key TEXT,
-	md5 TEXT,
-	size INTEGER,
-	is_folder TEXT DEFAULT 'N',
-	is_active TEXT DEFAULT 'Y',
-	created_at DATETIME,
-	updated_at DATETIME,
+	inner_name TEXT NOT NULL DEFAULT '',
+	storage_key TEXT NOT NULL DEFAULT '',
+	md5 TEXT NOT NULL DEFAULT '',
+	size INTEGER NOT NULL DEFAULT 0,
+	is_folder TEXT NOT NULL DEFAULT 'N',
+	is_active TEXT NOT NULL DEFAULT 'Y',
+	created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+	updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
 	deleted_at DATETIME,
-	original_directory_id INTEGER,
+	original_directory_id INTEGER NOT NULL DEFAULT 0,
 	FOREIGN KEY (user_id) REFERENCES users(id)
 );
 
@@ -276,5 +276,31 @@ CREATE INDEX IF NOT EXISTS idx_schedule_groups_user ON schedule_groups(user_id);
 `
 
 	_, err := db.Exec(schema)
+	if err != nil {
+		return err
+	}
+
+	// Fix NULL values in existing databases (schema defaults only apply to new rows)
+	migrations := `
+UPDATE files SET directory_id = 0 WHERE directory_id IS NULL;
+UPDATE files SET inner_name = '' WHERE inner_name IS NULL;
+UPDATE files SET storage_key = '' WHERE storage_key IS NULL;
+UPDATE files SET md5 = '' WHERE md5 IS NULL;
+UPDATE files SET size = 0 WHERE size IS NULL;
+UPDATE files SET is_folder = 'N' WHERE is_folder IS NULL;
+UPDATE files SET is_active = 'Y' WHERE is_active IS NULL;
+UPDATE files SET created_at = CURRENT_TIMESTAMP WHERE created_at IS NULL;
+UPDATE files SET updated_at = CURRENT_TIMESTAMP WHERE updated_at IS NULL;
+UPDATE recycle_files SET directory_id = 0 WHERE directory_id IS NULL;
+UPDATE recycle_files SET inner_name = '' WHERE inner_name IS NULL;
+UPDATE recycle_files SET storage_key = '' WHERE storage_key IS NULL;
+UPDATE recycle_files SET md5 = '' WHERE md5 IS NULL;
+UPDATE recycle_files SET size = 0 WHERE size IS NULL;
+UPDATE recycle_files SET is_folder = 'N' WHERE is_folder IS NULL;
+UPDATE recycle_files SET is_active = 'Y' WHERE is_active IS NULL;
+UPDATE recycle_files SET created_at = CURRENT_TIMESTAMP WHERE created_at IS NULL;
+UPDATE recycle_files SET updated_at = CURRENT_TIMESTAMP WHERE updated_at IS NULL;
+`
+	_, err = db.Exec(migrations)
 	return err
 }
