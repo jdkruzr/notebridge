@@ -80,7 +80,7 @@ prompt USER_EMAIL "User email" ""
 prompt_password USER_PASSWORD "Device password"
 prompt WEB_USERNAME "Web UI username" "admin"
 prompt_password WEB_PASSWORD "Web UI password"
-prompt CALDAV_COLLECTION "CalDAV task collection name" "NoteBridge Tasks"
+prompt CALDAV_COLLECTION "CalDAV task collection name" "Tasks"
 
 echo
 info "SPC Migration (leave blank for new installs)"
