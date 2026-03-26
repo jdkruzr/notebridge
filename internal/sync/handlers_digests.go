@@ -241,12 +241,8 @@ func (s *Server) handleCreateSummary(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Extract fields
+	// Extract fields — uniqueIdentifier is optional (device doesn't always send it)
 	uniqueID := bodyStr(body, "uniqueIdentifier")
-	if uniqueID == "" {
-		jsonError(w, ErrBadRequest("missing or empty 'uniqueIdentifier' field"))
-		return
-	}
 
 	summary := &syncdb.Summary{
 		ID:                     s.snowflake.Generate(),
