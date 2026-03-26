@@ -823,7 +823,7 @@ func (s *Store) ListFolder(ctx context.Context, userID int64, directoryID int64)
 	query := `
 		SELECT id, user_id, directory_id, file_name,
 			COALESCE(inner_name, ''), COALESCE(storage_key, ''), COALESCE(md5, ''),
-			size, is_folder, is_active,
+			COALESCE(size, 0), is_folder, COALESCE(is_active, 'Y'),
 			COALESCE(created_at, ''), COALESCE(updated_at, '')
 		FROM files
 		WHERE user_id = ? AND directory_id = ? AND is_active = 'Y'
