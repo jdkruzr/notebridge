@@ -53,15 +53,20 @@ func (s *Server) handleUploadApply(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// The tablet sends filePath as the FULL path including filename
+	// (e.g. "/NOTE/Note/20260326_015303 bee.note")
+	// Use it directly for the signed URL — do NOT append fileName again
+	uploadPath := filePath
+
 	// Generate signed tokens with 15-min TTL for uploads
-	uploadToken, err := s.authService.GenerateSignedURL(r.Context(), filePath+"/"+fileName, "upload", 15*time.Minute)
+	uploadToken, err := s.authService.GenerateSignedURL(r.Context(), uploadPath, "upload", 15*time.Minute)
 	if err != nil {
 		s.logger.Error("failed to generate upload token", "error", err)
 		jsonError(w, ErrInternal("internal server error"))
 		return
 	}
 
-	partUploadToken, err := s.authService.GenerateSignedURL(r.Context(), filePath+"/"+fileName, "upload_part", 15*time.Minute)
+	partUploadToken, err := s.authService.GenerateSignedURL(r.Context(), uploadPath, "upload_part", 15*time.Minute)
 	if err != nil {
 		s.logger.Error("failed to generate part upload token", "error", err)
 		jsonError(w, ErrInternal("internal server error"))
@@ -69,7 +74,7 @@ func (s *Server) handleUploadApply(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Format as absolute URLs — the tablet follows these directly
-	encodedPath := base64PathEncode(filePath + "/" + fileName)
+	encodedPath := base64PathEncode(uploadPath)
 	uploadURL := s.baseURL + "/api/oss/upload?signature=" + uploadToken + "&path=" + encodedPath
 	partUploadURL := s.baseURL + "/api/oss/upload/part?signature=" + partUploadToken + "&path=" + encodedPath
 

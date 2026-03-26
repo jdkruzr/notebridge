@@ -74,7 +74,7 @@ func TestAC21FullSyncCycle(t *testing.T) {
 	// Step 4: POST upload/apply to get signed URL
 	uploadApplyReq := map[string]interface{}{
 		"equipmentNo": "SN100001",
-		"path":        "/",
+		"path":        "/test.note",
 		"fileName":    "test.note",
 	}
 	body, _ = json.Marshal(uploadApplyReq)
@@ -198,7 +198,7 @@ func TestAC22RangeDownload(t *testing.T) {
 	// Get signed upload URL
 	uploadApplyReq := map[string]interface{}{
 		"equipmentNo": "SN100001",
-		"path":        "/",
+		"path":        "/rangefile.note",
 		"fileName":    "rangefile.note",
 	}
 	body, _ = json.Marshal(uploadApplyReq)
@@ -341,7 +341,7 @@ func TestAC23ChunkedUpload(t *testing.T) {
 	// First, get a signed URL for chunked upload
 	uploadApplyReq := map[string]interface{}{
 		"equipmentNo": "SN100001",
-		"path":        "/",
+		"path":        "/chunked.note",
 		"fileName":    "chunked.note",
 	}
 	body, _ = json.Marshal(uploadApplyReq)
@@ -453,7 +453,7 @@ func TestAC24SoftDelete(t *testing.T) {
 
 	uploadApplyReq := map[string]interface{}{
 		"equipmentNo": "SN100001",
-		"path":        "/",
+		"path":        "/todelete.note",
 		"fileName":    "todelete.note",
 	}
 	body, _ = json.Marshal(uploadApplyReq)
@@ -583,7 +583,7 @@ func TestAC25MoveRename(t *testing.T) {
 
 	uploadApplyReq := map[string]interface{}{
 		"equipmentNo": "SN100001",
-		"path":        "/",
+		"path":        "/tomove.note",
 		"fileName":    "tomove.note",
 	}
 	body, _ = json.Marshal(uploadApplyReq)
@@ -726,7 +726,7 @@ func TestAC26Copy(t *testing.T) {
 
 	uploadApplyReq := map[string]interface{}{
 		"equipmentNo": "SN100001",
-		"path":        "/",
+		"path":        "/tocopy.note",
 		"fileName":    "tocopy.note",
 	}
 	body, _ = json.Marshal(uploadApplyReq)
@@ -929,7 +929,7 @@ func TestAC28ExpiredSignedURL(t *testing.T) {
 
 	uploadApplyReq := map[string]interface{}{
 		"equipmentNo": "SN100001",
-		"path":        "/",
+		"path":        "/toexpire.note",
 		"fileName":    "toexpire.note",
 	}
 	body, _ = json.Marshal(uploadApplyReq)
@@ -1000,7 +1000,7 @@ func TestAC29ReusedNonce(t *testing.T) {
 
 	uploadApplyReq := map[string]interface{}{
 		"equipmentNo": "SN100001",
-		"path":        "/",
+		"path":        "/reused.note",
 		"fileName":    "reused.note",
 	}
 	body, _ = json.Marshal(uploadApplyReq)
