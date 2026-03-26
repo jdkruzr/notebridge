@@ -300,6 +300,7 @@ UPDATE recycle_files SET is_folder = 'N' WHERE is_folder IS NULL;
 UPDATE recycle_files SET is_active = 'Y' WHERE is_active IS NULL;
 UPDATE recycle_files SET created_at = CURRENT_TIMESTAMP WHERE created_at IS NULL;
 UPDATE recycle_files SET updated_at = CURRENT_TIMESTAMP WHERE updated_at IS NULL;
+UPDATE summaries SET source_type = '0' WHERE source_type IS NULL OR source_type = '';
 `
 	_, err = db.Exec(migrations)
 	return err

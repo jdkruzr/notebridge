@@ -1613,7 +1613,7 @@ func (s *Store) ListSummaryGroups(ctx context.Context, userID int64, page, pageS
 	offset := (page - 1) * pageSize
 	query := `
 		SELECT id, user_id, unique_identifier, name, description, file_id, parent_unique_identifier, content,
-		       data_source, source_path, source_type, tags, md5_hash, handwrite_md5, handwrite_inner_name, metadata,
+		       data_source, source_path, CAST(COALESCE(NULLIF(source_type, ''), '0') AS INTEGER), tags, md5_hash, handwrite_md5, handwrite_inner_name, metadata,
 		       comment_fields, handwrite_fields, comment_handwrite_name, is_summary_group, author, creation_time, last_modified_time
 		FROM summaries
 		WHERE user_id = ? AND is_summary_group = 'Y'
@@ -1692,7 +1692,7 @@ func (s *Store) ListSummaries(ctx context.Context, userID int64, page, pageSize 
 	if parentUID != nil {
 		query = `
 			SELECT id, user_id, unique_identifier, name, description, file_id, parent_unique_identifier, content,
-			       data_source, source_path, source_type, tags, md5_hash, handwrite_md5, handwrite_inner_name, metadata,
+			       data_source, source_path, CAST(COALESCE(NULLIF(source_type, ''), '0') AS INTEGER), tags, md5_hash, handwrite_md5, handwrite_inner_name, metadata,
 			       comment_fields, handwrite_fields, comment_handwrite_name, is_summary_group, author, creation_time, last_modified_time
 			FROM summaries
 			WHERE user_id = ? AND is_summary_group = 'N' AND parent_unique_identifier = ?
@@ -1703,7 +1703,7 @@ func (s *Store) ListSummaries(ctx context.Context, userID int64, page, pageSize 
 	} else {
 		query = `
 			SELECT id, user_id, unique_identifier, name, description, file_id, parent_unique_identifier, content,
-			       data_source, source_path, source_type, tags, md5_hash, handwrite_md5, handwrite_inner_name, metadata,
+			       data_source, source_path, CAST(COALESCE(NULLIF(source_type, ''), '0') AS INTEGER), tags, md5_hash, handwrite_md5, handwrite_inner_name, metadata,
 			       comment_fields, handwrite_fields, comment_handwrite_name, is_summary_group, author, creation_time, last_modified_time
 			FROM summaries
 			WHERE user_id = ? AND is_summary_group = 'N'
@@ -1867,7 +1867,7 @@ func (s *Store) GetSummariesByIDs(ctx context.Context, userID int64, ids []int64
 	offset := (page - 1) * pageSize
 	query := fmt.Sprintf(`
 		SELECT id, user_id, unique_identifier, name, description, file_id, parent_unique_identifier, content,
-		       data_source, source_path, source_type, tags, md5_hash, handwrite_md5, handwrite_inner_name, metadata,
+		       data_source, source_path, CAST(COALESCE(NULLIF(source_type, ''), '0') AS INTEGER), tags, md5_hash, handwrite_md5, handwrite_inner_name, metadata,
 		       comment_fields, handwrite_fields, comment_handwrite_name, is_summary_group, author, creation_time, last_modified_time
 		FROM summaries
 		WHERE user_id = ? AND id IN (%s)
@@ -1918,7 +1918,7 @@ func (s *Store) GetSummariesByIDs(ctx context.Context, userID int64, ids []int64
 func (s *Store) GetSummary(ctx context.Context, id int64, userID int64) (*Summary, error) {
 	query := `
 		SELECT id, user_id, unique_identifier, name, description, file_id, parent_unique_identifier, content,
-		       data_source, source_path, source_type, tags, md5_hash, handwrite_md5, handwrite_inner_name, metadata,
+		       data_source, source_path, CAST(COALESCE(NULLIF(source_type, ''), '0') AS INTEGER), tags, md5_hash, handwrite_md5, handwrite_inner_name, metadata,
 		       comment_fields, handwrite_fields, comment_handwrite_name, is_summary_group, author, creation_time, last_modified_time
 		FROM summaries
 		WHERE id = ? AND user_id = ?
