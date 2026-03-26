@@ -211,10 +211,8 @@ func (s *Server) handleListFolderV2(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	folderPath := bodyStr(body, "path")
-	if folderPath == "" {
-		folderPath = "/"
-	}
+	folderPath := strings.Trim(bodyStr(body, "path"), "/")
+	recursive := bodyBool(body, "recursive")
 
 	// Get userID from context
 	userID := UserIDFromContext(r.Context())
@@ -223,12 +221,25 @@ func (s *Server) handleListFolderV2(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// For now, resolve root directory (id=0)
-	// In a real implementation, we'd walk the path
+	// Resolve path to directory ID
 	directoryID := int64(0)
+	if folderPath != "" {
+		var resolveErr error
+		directoryID, resolveErr = s.resolvePathToDirectoryID(r.Context(), userID, folderPath)
+		if resolveErr != nil {
+			// Path doesn't exist — return empty entries (not an error)
+			jsonSuccess(w, map[string]interface{}{"equipmentNo": equipmentNo, "entries": []interface{}{}})
+			return
+		}
+	}
 
 	// List folder contents
-	entries, err := s.store.ListFolder(r.Context(), userID, directoryID)
+	var entries []syncdb.FileEntry
+	if recursive {
+		entries, err = s.store.ListFolderRecursive(r.Context(), userID, directoryID)
+	} else {
+		entries, err = s.store.ListFolder(r.Context(), userID, directoryID)
+	}
 	if err != nil {
 		s.logger.Error("failed to list folder", "error", err)
 		jsonError(w, ErrInternal("internal server error"))

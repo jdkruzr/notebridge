@@ -46,10 +46,15 @@ func (s *Server) handleSyncStart(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Return success with equipment details
+	// synType: true if user has root folders (incremental sync), false for first sync
+	var folderCount int
+	_ = s.store.DB().QueryRowContext(r.Context(),
+		`SELECT COUNT(*) FROM files WHERE user_id = ? AND directory_id = 0 AND is_folder = 'Y'`,
+		userID).Scan(&folderCount)
+
 	jsonSuccess(w, map[string]interface{}{
 		"equipmentNo": equipmentNo,
-		"synType":     "incremental",
+		"synType":     folderCount > 0,
 	})
 }
 

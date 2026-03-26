@@ -632,11 +632,11 @@ func (s *Server) handleSpaceUsage(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Return success with space info
-	// Assume 1TB quota (1099511627776 bytes)
+	// Return success matching SPC format
 	jsonSuccess(w, map[string]interface{}{
-		"used":  used,
-		"total": int64(1099511627776),
+		"equipmentNo":  equipmentNo,
+		"used":         used,
+		"allocationVO": map[string]interface{}{"tag": "individual", "allocated": diskTotalBytes(s.blobStore)},
 	})
 }
 
