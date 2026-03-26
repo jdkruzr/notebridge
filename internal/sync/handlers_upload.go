@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"net/url"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/google/uuid"
@@ -261,7 +262,7 @@ func (s *Server) handleUploadFinish(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	filePath := bodyStr(body, "path")
+	filePath := strings.TrimPrefix(bodyStr(body, "path"), "/")
 	fileName := bodyStr(body, "fileName")
 	if fileName == "" {
 		jsonError(w, ErrBadRequest("missing or empty 'fileName' field"))
@@ -278,12 +279,21 @@ func (s *Server) handleUploadFinish(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Determine storage key
-	storageKey := filePath + "/" + fileName
+	// Resolve folder path to directory ID (creates intermediate folders if needed)
+	dirPath := strings.TrimSuffix(filePath, "/")
+	dirID := int64(0)
+	if dirPath != "" {
+		var resolveErr error
+		dirID, resolveErr = s.resolvePathToDirectoryID(r.Context(), userID, dirPath)
+		if resolveErr != nil {
+			s.logger.Error("failed to resolve upload path", "path", dirPath, "error", resolveErr)
+			jsonError(w, ErrInternal("internal server error"))
+			return
+		}
+	}
 
-	// Check if file already exists
-	// For now, assume root directory (id=0)
-	existing, err := s.store.GetFileByPath(r.Context(), userID, 0, fileName)
+	// Check if file already exists in the target directory
+	existing, err := s.store.GetFileByPath(r.Context(), userID, dirID, fileName)
 	if err != nil {
 		s.logger.Error("failed to check for existing file", "error", err)
 		jsonError(w, ErrInternal("internal server error"))
@@ -302,10 +312,12 @@ func (s *Server) handleUploadFinish(w http.ResponseWriter, r *http.Request) {
 	} else {
 		// Create new file entry
 		fileID = s.snowflake.Generate()
+		// Storage key = clean relative path (no leading slash, no double slashes)
+		storageKey := filePath + fileName
 		entry := &syncdb.FileEntry{
 			ID:          fileID,
 			UserID:      userID,
-			DirectoryID: 0, // Root
+			DirectoryID: dirID,
 			FileName:    fileName,
 			InnerName:   fileName,
 			StorageKey:  storageKey,
@@ -329,16 +341,18 @@ func (s *Server) handleUploadFinish(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Publish FileUploaded event
+	eventPath := filePath + fileName
 	s.eventBus.Publish(events.Event{
 		Type:   events.FileUploaded,
 		FileID: fileID,
 		UserID: userID,
-		Path:   storageKey,
+		Path:   eventPath,
 	})
 
 	// Return success with file metadata
 	jsonSuccess(w, map[string]interface{}{
-		"path_display": "/" + fileName,
+		"equipmentNo":  equipmentNo,
+		"path_display": "/" + filePath + fileName,
 		"id":           fileID,
 		"size":         size,
 		"name":         fileName,
