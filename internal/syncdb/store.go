@@ -183,16 +183,17 @@ type Summary struct {
 	Content                 string `json:"content"`
 	DataSource              string `json:"dataSource"`
 	SourcePath              string `json:"sourcePath"`
-	SourceType              string `json:"sourceType"`
+	SourceType              int64  `json:"sourceType"`
 	Tags                    string `json:"tags"`
 	MD5Hash                 string `json:"md5Hash"`
-	HandwriteMD5            string `json:"handwriteMd5"`
+	HandwriteMD5            string `json:"handwriteMD5"`
 	HandwriteInnerName      string `json:"handwriteInnerName"`
 	Metadata                string `json:"metadata"`
-	CommentFields           string `json:"commentFields"`
-	HandwriteFields         string `json:"handwriteFields"`
+	CommentStr              string `json:"commentStr"`
+	HandwriteFields         string `json:"-"` // DB column exists but not in SPC protocol
 	CommentHandwriteName    string `json:"commentHandwriteName"`
 	IsSummaryGroup          string `json:"isSummaryGroup"`
+	IsDeleted               string `json:"isDeleted"`
 	Author                  string `json:"author"`
 	CreationTime            int64  `json:"creationTime"`
 	LastModifiedTime        int64  `json:"lastModifiedTime"`
@@ -202,7 +203,7 @@ type Summary struct {
 type SummaryHash struct {
 	ID                   int64  `json:"id"`
 	MD5Hash              string `json:"md5Hash"`
-	HandwriteMD5         string `json:"handwriteMd5"`
+	HandwriteMD5         string `json:"handwriteMD5"`
 	CommentHandwriteName string `json:"commentHandwriteName"`
 	LastModifiedTime     int64  `json:"lastModifiedTime"`
 	Metadata             string `json:"metadata"`
@@ -1540,7 +1541,7 @@ func (s *Store) CreateSummary(ctx context.Context, sum *Summary) error {
 	_, err = s.db.ExecContext(ctx, insertQuery,
 		sum.ID, sum.UserID, sum.UniqueIdentifier, sum.Name, sum.Description, sum.FileID, sum.ParentUniqueIdentifier, sum.Content,
 		sum.DataSource, sum.SourcePath, sum.SourceType, sum.Tags, sum.MD5Hash, sum.HandwriteMD5, sum.HandwriteInnerName, sum.Metadata,
-		sum.CommentFields, sum.HandwriteFields, sum.CommentHandwriteName, sum.IsSummaryGroup, sum.Author, sum.CreationTime, sum.LastModifiedTime, now)
+		sum.CommentStr, &sum.HandwriteFields, sum.CommentHandwriteName, sum.IsSummaryGroup, sum.Author, sum.CreationTime, sum.LastModifiedTime, now)
 	return err
 }
 
@@ -1633,7 +1634,7 @@ func (s *Store) ListSummaryGroups(ctx context.Context, userID int64, page, pageS
 
 		err := rows.Scan(&sum.ID, &sum.UserID, &sum.UniqueIdentifier, &sum.Name, &sum.Description, &sum.FileID, &sum.ParentUniqueIdentifier, &sum.Content,
 			&sum.DataSource, &sum.SourcePath, &sum.SourceType, &sum.Tags, &sum.MD5Hash, &sum.HandwriteMD5, &sum.HandwriteInnerName, &sum.Metadata,
-			&sum.CommentFields, &sum.HandwriteFields, &sum.CommentHandwriteName, &sum.IsSummaryGroup, &sum.Author, &creationTimeStr, &lastModifiedTimeStr)
+			&sum.CommentStr, &sum.HandwriteFields, &sum.CommentHandwriteName, &sum.IsSummaryGroup, &sum.Author, &creationTimeStr, &lastModifiedTimeStr)
 		if err != nil {
 			return nil, 0, err
 		}
@@ -1725,7 +1726,7 @@ func (s *Store) ListSummaries(ctx context.Context, userID int64, page, pageSize 
 
 		err := rows.Scan(&sum.ID, &sum.UserID, &sum.UniqueIdentifier, &sum.Name, &sum.Description, &sum.FileID, &sum.ParentUniqueIdentifier, &sum.Content,
 			&sum.DataSource, &sum.SourcePath, &sum.SourceType, &sum.Tags, &sum.MD5Hash, &sum.HandwriteMD5, &sum.HandwriteInnerName, &sum.Metadata,
-			&sum.CommentFields, &sum.HandwriteFields, &sum.CommentHandwriteName, &sum.IsSummaryGroup, &sum.Author, &creationTimeStr, &lastModifiedTimeStr)
+			&sum.CommentStr, &sum.HandwriteFields, &sum.CommentHandwriteName, &sum.IsSummaryGroup, &sum.Author, &creationTimeStr, &lastModifiedTimeStr)
 		if err != nil {
 			return nil, 0, err
 		}
@@ -1890,7 +1891,7 @@ func (s *Store) GetSummariesByIDs(ctx context.Context, userID int64, ids []int64
 
 		err := rows.Scan(&sum.ID, &sum.UserID, &sum.UniqueIdentifier, &sum.Name, &sum.Description, &sum.FileID, &sum.ParentUniqueIdentifier, &sum.Content,
 			&sum.DataSource, &sum.SourcePath, &sum.SourceType, &sum.Tags, &sum.MD5Hash, &sum.HandwriteMD5, &sum.HandwriteInnerName, &sum.Metadata,
-			&sum.CommentFields, &sum.HandwriteFields, &sum.CommentHandwriteName, &sum.IsSummaryGroup, &sum.Author, &creationTimeStr, &lastModifiedTimeStr)
+			&sum.CommentStr, &sum.HandwriteFields, &sum.CommentHandwriteName, &sum.IsSummaryGroup, &sum.Author, &creationTimeStr, &lastModifiedTimeStr)
 		if err != nil {
 			return nil, 0, err
 		}
@@ -1929,7 +1930,7 @@ func (s *Store) GetSummary(ctx context.Context, id int64, userID int64) (*Summar
 	err := s.db.QueryRowContext(ctx, query, id, userID).Scan(
 		&sum.ID, &sum.UserID, &sum.UniqueIdentifier, &sum.Name, &sum.Description, &sum.FileID, &sum.ParentUniqueIdentifier, &sum.Content,
 		&sum.DataSource, &sum.SourcePath, &sum.SourceType, &sum.Tags, &sum.MD5Hash, &sum.HandwriteMD5, &sum.HandwriteInnerName, &sum.Metadata,
-		&sum.CommentFields, &sum.HandwriteFields, &sum.CommentHandwriteName, &sum.IsSummaryGroup, &sum.Author, &creationTimeStr, &lastModifiedTimeStr)
+		&sum.CommentStr, &sum.HandwriteFields, &sum.CommentHandwriteName, &sum.IsSummaryGroup, &sum.Author, &creationTimeStr, &lastModifiedTimeStr)
 
 	if err == sql.ErrNoRows {
 		return nil, nil

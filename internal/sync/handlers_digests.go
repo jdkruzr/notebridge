@@ -254,14 +254,23 @@ func (s *Server) handleCreateSummary(w http.ResponseWriter, r *http.Request) {
 		UniqueIdentifier:       uniqueID,
 		Name:                   bodyStr(body, "name"),
 		Description:            bodyStr(body, "description"),
+		FileID:                 bodyInt(body, "fileId"),
+		ParentUniqueIdentifier: bodyStr(body, "parentUniqueIdentifier"),
+		Content:                bodyStr(body, "content"),
+		DataSource:             bodyStr(body, "dataSource"),
+		SourcePath:             bodyStr(body, "sourcePath"),
+		SourceType:             bodyInt(body, "sourceType"),
+		Tags:                   bodyStr(body, "tags"),
 		MD5Hash:                bodyStr(body, "md5Hash"),
+		HandwriteMD5:           bodyStr(body, "handwriteMD5"),
+		HandwriteInnerName:     bodyStr(body, "handwriteInnerName"),
+		Metadata:               bodyStr(body, "metadata"),
+		CommentStr:             bodyStr(body, "commentStr"),
+		CommentHandwriteName:   bodyStr(body, "commentHandwriteName"),
+		IsSummaryGroup:         "N",
+		Author:                 bodyStr(body, "author"),
 		CreationTime:           bodyInt(body, "creationTime"),
 		LastModifiedTime:       bodyInt(body, "lastModifiedTime"),
-		IsSummaryGroup:         "N",
-		ParentUniqueIdentifier: bodyStr(body, "parentUniqueIdentifier"),
-		HandwriteInnerName:     bodyStr(body, "handwriteInnerName"),
-		CommentHandwriteName:   bodyStr(body, "commentHandwriteName"),
-		Metadata:               bodyStr(body, "metadata"),
 	}
 
 	if err := s.store.CreateSummary(r.Context(), summary); err != nil {
@@ -506,7 +515,7 @@ func (s *Server) handleQuerySummaryByIDs(w http.ResponseWriter, r *http.Request)
 	jsonSuccess(w, map[string]interface{}{
 		"totalRecords": total,
 		"totalPages":   totalPages,
-		"summaries":    summaries,
+		"summaryDOList": summaries,
 	})
 }
 
@@ -560,7 +569,7 @@ func (s *Server) handleQuerySummaries(w http.ResponseWriter, r *http.Request) {
 	jsonSuccess(w, map[string]interface{}{
 		"totalRecords": total,
 		"totalPages":   totalPages,
-		"summaries":    summaries,
+		"summaryDOList": summaries,
 	})
 }
 

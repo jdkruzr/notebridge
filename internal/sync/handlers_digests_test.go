@@ -65,7 +65,7 @@ func TestAC61SummarySync(t *testing.T) {
 	var queryResp map[string]interface{}
 	json.NewDecoder(w.Body).Decode(&queryResp)
 
-	if queryResp["summaries"] == nil {
+	if queryResp["summaryDOList"] == nil {
 		t.Fatalf("expected summaries in response: %v", queryResp)
 	}
 }

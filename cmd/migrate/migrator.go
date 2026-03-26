@@ -8,6 +8,7 @@ import (
 	"log/slog"
 	"os"
 	"path/filepath"
+	"strconv"
 
 	"github.com/sysop/notebridge/internal/blob"
 	"github.com/sysop/notebridge/internal/sync"
@@ -437,7 +438,7 @@ func (m *Migrator) migrateSummaries(ctx context.Context) error {
 				Content:                s.Content,
 				DataSource:             s.DataSource,
 				SourcePath:             s.SourcePath,
-				SourceType:             s.SourceType,
+				SourceType:             parseSourceType(s.SourceType),
 				Tags:                   s.Tags,
 				MD5Hash:                s.MD5Hash,
 				HandwriteInnerName:     s.HandwriteInnerName,
@@ -510,4 +511,9 @@ func (m *Migrator) reportStats() {
 	if m.stats.HandwriteFilesMissing > 0 {
 		m.logger.Warn("Missing handwrite files", "count", m.stats.HandwriteFilesMissing)
 	}
+}
+
+func parseSourceType(s string) int64 {
+	n, _ := strconv.ParseInt(s, 10, 64)
+	return n
 }
