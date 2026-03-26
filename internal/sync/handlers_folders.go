@@ -214,6 +214,8 @@ func (s *Server) handleListFolderV2(w http.ResponseWriter, r *http.Request) {
 	folderPath := strings.Trim(bodyStr(body, "path"), "/")
 	recursive := bodyBool(body, "recursive")
 
+	s.logger.Info("list_folder_v2", "path", folderPath, "recursive", recursive, "equipmentNo", equipmentNo)
+
 	// Get userID from context
 	userID := UserIDFromContext(r.Context())
 	if userID == 0 {
