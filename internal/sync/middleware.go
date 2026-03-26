@@ -93,7 +93,14 @@ func isPublicEndpoint(path string) bool {
 		"/api/oss/upload/part":      true, // Signed URL verification instead of JWT
 		"/socket.io/":               true, // Socket.IO performs its own JWT validation via query params
 	}
-	return publicPaths[path]
+	if publicPaths[path] {
+		return true
+	}
+	// Socket.IO paths may have varying suffixes (/socket.io, /socket.io/, /socket.io/anything)
+	if strings.HasPrefix(path, "/socket.io") {
+		return true
+	}
+	return false
 }
 
 // RecoveryMiddleware recovers from panics, logs the stack trace, and returns 500.
