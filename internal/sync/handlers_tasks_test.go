@@ -257,18 +257,14 @@ func TestAC53BatchUpdate(t *testing.T) {
 		"updateScheduleTaskList": []map[string]interface{}{
 			{
 				"taskId": taskIDs[0],
-				"fields": map[string]interface{}{
-					"status":       "1",
-					"importance":   "2",
-					"lastModified": time.Now().UnixMilli(),
-				},
+				"status":       "1",
+				"importance":   "2",
+				"lastModified": time.Now().UnixMilli(),
 			},
 			{
 				"taskId": taskIDs[1],
-				"fields": map[string]interface{}{
-					"status":       "2",
-					"lastModified": time.Now().UnixMilli(),
-				},
+				"status":       "2",
+				"lastModified": time.Now().UnixMilli(),
 			},
 		},
 	}
@@ -288,9 +284,7 @@ func TestAC53BatchUpdate(t *testing.T) {
 		"updateScheduleTaskList": []map[string]interface{}{
 			{
 				"taskId": "nonexistent",
-				"fields": map[string]interface{}{
-					"status": "3",
-				},
+				"status": "3",
 			},
 		},
 	}

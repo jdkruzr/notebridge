@@ -321,14 +321,11 @@ func (s *Server) handleBatchUpdateTasks(w http.ResponseWriter, r *http.Request) 
 			return
 		}
 
-		fieldsRaw, ok := itemMap["fields"].(map[string]interface{})
-		if !ok {
-			jsonError(w, ErrBadRequest("missing or invalid 'fields' in update item"))
-			return
-		}
-
-		// Convert camelCase field names to snake_case
-		fields := convertFieldNames(fieldsRaw)
+		// The device sends task fields directly in the object (no nested "fields" key).
+		// Convert camelCase field names to snake_case for the store.
+		fields := convertFieldNames(itemMap)
+		// Remove taskId from fields — it's the key, not a field to update
+		delete(fields, "task_id")
 
 		updates = append(updates, syncdb.TaskUpdate{
 			TaskID: taskID,
