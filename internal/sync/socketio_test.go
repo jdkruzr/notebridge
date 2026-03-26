@@ -264,8 +264,8 @@ func TestSocketIOClientMessage(t *testing.T) {
 		t.Fatalf("failed to decode event: %v", err)
 	}
 
-	if eventName != "ClientMessage" {
-		t.Errorf("expected event 'ClientMessage', got %q", eventName)
+	if eventName != "ServerMessage" {
+		t.Errorf("expected event 'ServerMessage', got %q", eventName)
 	}
 	if !strings.Contains(data, "true") {
 		t.Errorf("expected 'true' in response, got %q", data)

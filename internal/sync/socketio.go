@@ -143,8 +143,8 @@ func SocketIOHandler(auth *AuthService, notifier *NotifyManager, logger *slog.Lo
 					}
 
 				case "ClientMessage":
-					// Respond with true status
-					response, _ := EncodeEvent("ClientMessage", "true")
+					// Respond with true status via ServerMessage event (matches SPC protocol)
+					response, _ := EncodeEvent("ServerMessage", "true")
 					if _, err := io.WriteString(ws, response); err != nil {
 						logger.Debug("failed to write ClientMessage response", "error", err)
 						return

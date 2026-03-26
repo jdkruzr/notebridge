@@ -145,7 +145,15 @@ func (s *Server) Handler() http.Handler {
 	mux.HandleFunc("POST /api/file/download/summary", s.handleDownloadSummary)
 
 	// Socket.IO WebSocket endpoint (handles its own auth via query params)
-	mux.Handle("/socket.io/", websocket.Handler(SocketIOHandler(s.authService, s.notifier, s.logger)))
+	// Socket.IO WebSocket endpoint — skip origin check (requests come through reverse proxy)
+	socketIOServer := &websocket.Server{
+		Handshake: func(config *websocket.Config, r *http.Request) error {
+			config.Origin = nil // Skip origin check — auth is done via JWT in query params
+			return nil
+		},
+		Handler: SocketIOHandler(s.authService, s.notifier, s.logger),
+	}
+	mux.Handle("/socket.io/", socketIOServer)
 
 	// Wrap with middleware chain (innermost first, then wrap with next)
 	// Order: mux -> AuthMiddleware -> LoggingMiddleware -> RecoveryMiddleware
