@@ -88,17 +88,19 @@ prompt SPC_USER_ID "SPC user ID (from u_user.user_id)" ""
 prompt SPC_MACHINE_ID "SPC machine ID (from t_machine_id)" ""
 
 echo
-info "OCR Pipeline (leave blank to disable)"
-prompt OCR_API_KEY "LLM API key (Anthropic, OpenAI, etc.)" ""
-if [[ -n "$OCR_API_KEY" ]]; then
+info "OCR Pipeline"
+prompt OCR_ENABLE "Enable OCR? (y/n)" "y"
+if [[ "${OCR_ENABLE,,}" == "y" || "${OCR_ENABLE,,}" == "yes" ]]; then
     prompt OCR_API_URL "LLM API URL" "https://api.anthropic.com/v1/messages"
     prompt OCR_FORMAT "API format (anthropic or openai)" "anthropic"
     prompt OCR_MODEL "Model name" "claude-sonnet-4-20250514"
+    prompt OCR_API_KEY "API key (blank for local inference)" ""
     OCR_ENABLED="true"
 else
     OCR_API_URL=""
     OCR_FORMAT=""
     OCR_MODEL=""
+    OCR_API_KEY=""
     OCR_ENABLED="false"
 fi
 
