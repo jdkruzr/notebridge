@@ -80,7 +80,7 @@ func main() {
 	snowflake := sync.NewSnowflakeGenerator()
 
 	// Bootstrap user with EnsureUser
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
 
 	// Use configured user ID (from SPC migration) or generate new Snowflake
