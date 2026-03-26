@@ -659,6 +659,67 @@ func (s *Store) RefreshLock(ctx context.Context, userID int64) error {
 // === File Catalog Methods ===
 
 // CreateFile inserts a new file entry into the files table.
+// EnsureRootFolders creates the standard SPC root folder structure if missing.
+// Root folders: DOCUMENT, NOTE, EXPORT, SCREENSHOT, INBOX
+// Sub-folders: DOCUMENT/Document, NOTE/Note, NOTE/MyStyle
+func (s *Store) EnsureRootFolders(ctx context.Context, userID int64, genID func() int64) error {
+	type folder struct {
+		name     string
+		parentID int64 // 0 = root
+	}
+
+	// First pass: create root folders
+	rootFolders := []string{"DOCUMENT", "NOTE", "EXPORT", "SCREENSHOT", "INBOX"}
+	rootIDs := map[string]int64{}
+
+	for _, name := range rootFolders {
+		var existingID int64
+		err := s.db.QueryRowContext(ctx,
+			`SELECT id FROM files WHERE user_id = ? AND directory_id = 0 AND file_name = ? AND is_folder = 'Y'`,
+			userID, name).Scan(&existingID)
+		if err == sql.ErrNoRows {
+			existingID = genID()
+			now := time.Now().Format(time.RFC3339Nano)
+			_, err = s.db.ExecContext(ctx,
+				`INSERT INTO files (id, user_id, directory_id, file_name, is_folder, is_active, created_at, updated_at) VALUES (?, ?, 0, ?, 'Y', 'Y', ?, ?)`,
+				existingID, userID, name, now, now)
+			if err != nil {
+				return fmt.Errorf("create root folder %s: %w", name, err)
+			}
+		} else if err != nil {
+			return err
+		}
+		rootIDs[name] = existingID
+	}
+
+	// Second pass: create sub-folders
+	subFolders := []folder{
+		{name: "Document", parentID: rootIDs["DOCUMENT"]},
+		{name: "Note", parentID: rootIDs["NOTE"]},
+		{name: "MyStyle", parentID: rootIDs["NOTE"]},
+	}
+
+	for _, sf := range subFolders {
+		var existingID int64
+		err := s.db.QueryRowContext(ctx,
+			`SELECT id FROM files WHERE user_id = ? AND directory_id = ? AND file_name = ? AND is_folder = 'Y'`,
+			userID, sf.parentID, sf.name).Scan(&existingID)
+		if err == sql.ErrNoRows {
+			now := time.Now().Format(time.RFC3339Nano)
+			_, err = s.db.ExecContext(ctx,
+				`INSERT INTO files (id, user_id, directory_id, file_name, is_folder, is_active, created_at, updated_at) VALUES (?, ?, ?, ?, 'Y', 'Y', ?, ?)`,
+				genID(), userID, sf.parentID, sf.name, now, now)
+			if err != nil {
+				return fmt.Errorf("create sub-folder %s: %w", sf.name, err)
+			}
+		} else if err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
 func (s *Store) CreateFile(ctx context.Context, f *FileEntry) error {
 	now := time.Now().Format(time.RFC3339Nano)
 	isFolderStr := "N"

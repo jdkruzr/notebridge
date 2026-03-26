@@ -112,6 +112,17 @@ func main() {
 
 	logger.Info("user bootstrapped", "email", cfg.UserEmail, "machineID", machineID)
 
+	// Ensure root folders exist for the user
+	bootstrapUser, err := store.GetUserByEmail(ctx, cfg.UserEmail)
+	if err != nil || bootstrapUser == nil {
+		logger.Error("failed to get user after bootstrap")
+		os.Exit(1)
+	}
+	if err := store.EnsureRootFolders(ctx, bootstrapUser.ID, snowflake.Generate); err != nil {
+		logger.Error("failed to ensure root folders", "error", err)
+		os.Exit(1)
+	}
+
 	// Get or create JWT secret from store
 	_, err = store.GetOrCreateJWTSecret(ctx)
 	if err != nil {

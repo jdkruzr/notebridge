@@ -1,6 +1,7 @@
 package sync
 
 import (
+	"encoding/json"
 	"errors"
 	"net/http"
 	"time"
@@ -465,8 +466,13 @@ func (s *Server) handleQuerySummaryByIDs(w http.ResponseWriter, r *http.Request)
 
 	var ids []int64
 	for _, id := range idsRaw {
-		if idInt, ok := id.(float64); ok {
-			ids = append(ids, int64(idInt))
+		switch v := id.(type) {
+		case json.Number:
+			if n, err := v.Int64(); err == nil {
+				ids = append(ids, n)
+			}
+		case float64:
+			ids = append(ids, int64(v))
 		}
 	}
 
