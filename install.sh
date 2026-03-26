@@ -88,6 +88,21 @@ prompt SPC_USER_ID "SPC user ID (from u_user.user_id)" ""
 prompt SPC_MACHINE_ID "SPC machine ID (from t_machine_id)" ""
 
 echo
+info "OCR Pipeline (leave blank to disable)"
+prompt OCR_API_KEY "LLM API key (Anthropic, OpenAI, etc.)" ""
+if [[ -n "$OCR_API_KEY" ]]; then
+    prompt OCR_API_URL "LLM API URL" "https://api.anthropic.com/v1/messages"
+    prompt OCR_FORMAT "API format (anthropic or openai)" "anthropic"
+    prompt OCR_MODEL "Model name" "claude-sonnet-4-20250514"
+    OCR_ENABLED="true"
+else
+    OCR_API_URL=""
+    OCR_FORMAT=""
+    OCR_MODEL=""
+    OCR_ENABLED="false"
+fi
+
+echo
 
 # --- generate secrets ---
 
@@ -157,6 +172,11 @@ NB_MACHINE_ID=$SPC_MACHINE_ID
 NB_CALDAV_COLLECTION_NAME=$CALDAV_COLLECTION
 NB_WEB_USERNAME=$WEB_USERNAME
 NB_WEB_PASSWORD_HASH=$(escape_dollars "$WEB_PASSWORD_HASH")
+NB_OCR_ENABLED=$OCR_ENABLED
+NB_OCR_API_URL=$OCR_API_URL
+NB_OCR_API_KEY=$OCR_API_KEY
+NB_OCR_FORMAT=$OCR_FORMAT
+NB_OCR_MODEL=$OCR_MODEL
 ENVEOF
 ok ".env and notebridge.env created"
 
