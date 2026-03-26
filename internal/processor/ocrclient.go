@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"strings"
 	"time"
 )
 
@@ -42,7 +43,7 @@ func NewOCRClient(apiURL, apiKey, model, format string) *OCRClient {
 		format = OCRFormatAnthropic // default
 	}
 	return &OCRClient{
-		apiURL: apiURL,
+		apiURL: strings.TrimRight(apiURL, "/"),
 		apiKey: apiKey,
 		model:  model,
 		format: format,
