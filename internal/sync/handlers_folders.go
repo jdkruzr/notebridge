@@ -146,45 +146,10 @@ func (s *Server) handleListFolderV3(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// List folder contents
-	var entries []syncdb.FileEntry
-	if recursive {
-		entries, err = s.store.ListFolderRecursive(r.Context(), userID, directoryID)
-	} else {
-		entries, err = s.store.ListFolder(r.Context(), userID, directoryID)
-	}
+	// Build the base path for this directory ID
+	basePath := s.buildPathForDirectoryID(r.Context(), userID, directoryID)
 
-	if err != nil {
-		s.logger.Error("failed to list folder", "error", err)
-		jsonError(w, ErrInternal("internal server error"))
-		return
-	}
-
-	// Filter out stale entries (verify file exists on disk)
-	var result []map[string]interface{}
-	for _, entry := range entries {
-		// Skip files that don't exist on disk (folders are always listed)
-		if !entry.IsFolder && entry.StorageKey != "" && !s.blobStore.Exists(r.Context(), entry.StorageKey) {
-			continue
-		}
-
-		tag := "file"
-		if entry.IsFolder {
-			tag = "folder"
-		}
-
-		result = append(result, map[string]interface{}{
-			"tag":               tag,
-			"id":                entry.ID,
-			"name":              entry.FileName,
-			"path_display":      "/" + entry.FileName,
-			"content_hash":      entry.MD5,
-			"size":              entry.Size,
-			"lastUpdateTime":    entry.UpdatedAt.Unix() * 1000,
-			"is_downloadable":   !entry.IsFolder,
-			"parent_path":       "/",
-		})
-	}
+	result := s.listEntriesWithPaths(r.Context(), userID, directoryID, basePath, recursive)
 
 	// Return success with entries
 	jsonSuccess(w, map[string]interface{}{
@@ -235,23 +200,28 @@ func (s *Server) handleListFolderV2(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	// List folder contents
-	var entries []syncdb.FileEntry
-	if recursive {
-		entries, err = s.store.ListFolderRecursive(r.Context(), userID, directoryID)
-	} else {
-		entries, err = s.store.ListFolder(r.Context(), userID, directoryID)
-	}
+	result := s.listEntriesWithPaths(r.Context(), userID, directoryID, folderPath, recursive)
+
+	// Return success with entries
+	jsonSuccess(w, map[string]interface{}{
+		"entries": result,
+	})
+}
+
+// listEntriesWithPaths lists folder contents with correct path_display values.
+// Matches opennotecloud's recursive listing approach: path is built by accumulating
+// directory names as we descend, so each entry gets its full path.
+func (s *Server) listEntriesWithPaths(ctx context.Context, userID, dirID int64, basePath string, recursive bool) []map[string]interface{} {
+	entries, err := s.store.ListFolder(ctx, userID, dirID)
 	if err != nil {
 		s.logger.Error("failed to list folder", "error", err)
-		jsonError(w, ErrInternal("internal server error"))
-		return
+		return []map[string]interface{}{}
 	}
 
-	// Filter out stale entries
 	var result []map[string]interface{}
 	for _, entry := range entries {
-		if !entry.IsFolder && entry.StorageKey != "" && !s.blobStore.Exists(r.Context(), entry.StorageKey) {
+		// Skip files that don't exist on disk (folders are always listed)
+		if !entry.IsFolder && entry.StorageKey != "" && !s.blobStore.Exists(ctx, entry.StorageKey) {
 			continue
 		}
 
@@ -260,23 +230,53 @@ func (s *Server) handleListFolderV2(w http.ResponseWriter, r *http.Request) {
 			tag = "folder"
 		}
 
+		// Build path_display: basePath + "/" + name (or just name if basePath is empty)
+		pathDisplay := entry.FileName
+		if basePath != "" {
+			pathDisplay = basePath + "/" + entry.FileName
+		}
+
 		result = append(result, map[string]interface{}{
-			"tag":               tag,
-			"id":                entry.ID,
-			"name":              entry.FileName,
-			"path_display":      "/" + entry.FileName,
-			"content_hash":      entry.MD5,
-			"size":              entry.Size,
-			"lastUpdateTime":    entry.UpdatedAt.Unix() * 1000,
-			"is_downloadable":   !entry.IsFolder,
-			"parent_path":       folderPath,
+			"tag":             tag,
+			"id":              entry.ID,
+			"name":            entry.FileName,
+			"path_display":    pathDisplay,
+			"content_hash":    entry.MD5,
+			"size":            entry.Size,
+			"lastUpdateTime":  entry.UpdatedAt.Unix() * 1000,
+			"is_downloadable": !entry.IsFolder,
+			"parent_path":     basePath,
 		})
+
+		// Recurse into subfolders
+		if recursive && entry.IsFolder {
+			result = append(result, s.listEntriesWithPaths(ctx, userID, entry.ID, pathDisplay, true)...)
+		}
 	}
 
-	// Return success with entries
-	jsonSuccess(w, map[string]interface{}{
-		"entries": result,
-	})
+	if result == nil {
+		result = []map[string]interface{}{}
+	}
+	return result
+}
+
+// buildPathForDirectoryID reconstructs the full path for a directory ID
+// by walking up the parent chain. Returns "" for root (id=0).
+func (s *Server) buildPathForDirectoryID(ctx context.Context, userID, dirID int64) string {
+	if dirID == 0 {
+		return ""
+	}
+	var parts []string
+	currentID := dirID
+	for currentID != 0 {
+		file, err := s.store.GetFile(ctx, currentID, userID)
+		if err != nil || file == nil {
+			break
+		}
+		parts = append([]string{file.FileName}, parts...)
+		currentID = file.DirectoryID
+	}
+	return strings.Join(parts, "/")
 }
 
 // resolvePathToDirectoryID walks a path and returns the directory ID.
