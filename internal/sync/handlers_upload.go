@@ -44,6 +44,8 @@ func (s *Server) handleUploadApply(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	s.logger.Info("upload/apply", "filePath", filePath, "fileName", fileName)
+
 	// Get userID from context
 	userID := UserIDFromContext(r.Context())
 	if userID == 0 {
@@ -268,6 +270,8 @@ func (s *Server) handleUploadFinish(w http.ResponseWriter, r *http.Request) {
 		jsonError(w, ErrBadRequest("missing or empty 'fileName' field"))
 		return
 	}
+
+	s.logger.Info("upload/finish", "filePath", filePath, "fileName", fileName)
 
 	contentHash := bodyStr(body, "content_hash")
 	size := bodyInt(body, "size")
