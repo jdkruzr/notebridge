@@ -30,21 +30,22 @@ func AuthMiddleware(authService *AuthService) func(http.Handler) http.Handler {
 				return
 			}
 
-			// Extract token from Authorization header
-			authHeader := r.Header.Get("Authorization")
-			if authHeader == "" {
+			// Extract token: try x-access-token header first (SPC protocol),
+			// then fall back to Authorization: Bearer (standard HTTP)
+			token := r.Header.Get("x-access-token")
+			if token == "" {
+				authHeader := r.Header.Get("Authorization")
+				if authHeader != "" {
+					parts := strings.SplitN(authHeader, " ", 2)
+					if len(parts) == 2 && parts[0] == "Bearer" {
+						token = parts[1]
+					}
+				}
+			}
+			if token == "" {
 				jsonError(w, ErrInvalidToken())
 				return
 			}
-
-			// Parse "Bearer <token>"
-			parts := strings.SplitN(authHeader, " ", 2)
-			if len(parts) != 2 || parts[0] != "Bearer" {
-				jsonError(w, ErrInvalidToken())
-				return
-			}
-
-			token := parts[1]
 
 			// Validate token
 			userID, equipmentNo, err := authService.ValidateJWTToken(r.Context(), token)
