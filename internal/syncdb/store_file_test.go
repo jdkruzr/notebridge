@@ -18,7 +18,7 @@ func setupTestStore(t *testing.T) *Store {
 
 	// Create a test user
 	ctx := context.Background()
-	err = store.EnsureUser(ctx, "test@example.com", "testhash", nil)
+	err = store.EnsureUser(ctx, "test@example.com", "testhash", 1000000000000001)
 	if err != nil {
 		t.Fatalf("failed to create test user: %v", err)
 	}

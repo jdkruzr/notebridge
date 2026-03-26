@@ -113,7 +113,7 @@ func (m *Migrator) migrateUser(ctx context.Context) error {
 	}
 
 	if !m.dryRun {
-		if err := m.syncStore.EnsureUser(ctx, user.Email, user.PasswordHash, nil); err != nil {
+		if err := m.syncStore.EnsureUser(ctx, user.Email, user.PasswordHash, user.UserID); err != nil {
 			return fmt.Errorf("failed to ensure user: %w", err)
 		}
 

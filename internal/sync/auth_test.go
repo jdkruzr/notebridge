@@ -25,7 +25,7 @@ func TestFullChallengeResponseFlow(t *testing.T) {
 
 	// Setup: Create user with known password hash
 	passwordHash := "md5hash_of_password"
-	err = store.EnsureUser(ctx, "test@example.com", passwordHash, nil)
+	err = store.EnsureUser(ctx, "test@example.com", passwordHash, 1000000000000001)
 	if err != nil {
 		t.Fatalf("failed to ensure user: %v", err)
 	}
@@ -69,7 +69,7 @@ func TestValidateJWTToken(t *testing.T) {
 
 	// Setup
 	passwordHash := "md5hash"
-	err = store.EnsureUser(ctx, "test@example.com", passwordHash, nil)
+	err = store.EnsureUser(ctx, "test@example.com", passwordHash, 1000000000000001)
 	if err != nil {
 		t.Fatalf("failed to ensure user: %v", err)
 	}
@@ -107,7 +107,7 @@ func TestWrongPassword(t *testing.T) {
 
 	// Setup
 	passwordHash := "correct_hash"
-	err = store.EnsureUser(ctx, "test@example.com", passwordHash, nil)
+	err = store.EnsureUser(ctx, "test@example.com", passwordHash, 1000000000000001)
 	if err != nil {
 		t.Fatalf("failed to ensure user: %v", err)
 	}
@@ -165,7 +165,7 @@ func TestInvalidJWTToken(t *testing.T) {
 
 // Helper function to generate a valid login with known password
 func setupLoginWithPassword(ctx context.Context, store *syncdb.Store, authService *AuthService, email, passwordHash string) (string, error) {
-	err := store.EnsureUser(ctx, email, passwordHash, nil)
+	err := store.EnsureUser(ctx, email, passwordHash, 1000000000000001)
 	if err != nil {
 		return "", err
 	}
@@ -194,7 +194,7 @@ func TestExpiredJWTToken(t *testing.T) {
 
 	// Setup
 	passwordHash := "md5hash"
-	err = store.EnsureUser(ctx, "test@example.com", passwordHash, nil)
+	err = store.EnsureUser(ctx, "test@example.com", passwordHash, 1000000000000001)
 	if err != nil {
 		t.Fatalf("failed to ensure user: %v", err)
 	}
@@ -245,7 +245,7 @@ func TestAccountLockout(t *testing.T) {
 
 	// Setup
 	passwordHash := "correct_hash"
-	err = store.EnsureUser(ctx, "test@example.com", passwordHash, nil)
+	err = store.EnsureUser(ctx, "test@example.com", passwordHash, 1000000000000001)
 	if err != nil {
 		t.Fatalf("failed to ensure user: %v", err)
 	}
@@ -333,7 +333,7 @@ func TestExpiredChallenge(t *testing.T) {
 
 	// Setup
 	passwordHash := "md5hash"
-	err = store.EnsureUser(ctx, "test@example.com", passwordHash, nil)
+	err = store.EnsureUser(ctx, "test@example.com", passwordHash, 1000000000000001)
 	if err != nil {
 		t.Fatalf("failed to ensure user: %v", err)
 	}

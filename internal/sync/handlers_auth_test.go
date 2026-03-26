@@ -33,7 +33,7 @@ func setupTestServer(t *testing.T) (*httptest.Server, *syncdb.Store) {
 	testEmail := "test@example.com"
 	testPasswordHash := "md5hash_of_testpassword"
 
-	err = store.EnsureUser(ctx, testEmail, testPasswordHash, nil)
+	err = store.EnsureUser(ctx, testEmail, testPasswordHash, 1000000000000001)
 	if err != nil {
 		t.Fatalf("failed to ensure user: %v", err)
 	}

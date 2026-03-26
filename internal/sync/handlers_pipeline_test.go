@@ -37,7 +37,7 @@ func setupPipelineTestServer(t *testing.T) (*syncdb.Store, *pipeline.Pipeline, s
 	ctx := context.Background()
 	userEmail := "test@example.com"
 	passwordHash := "fakehash"
-	if err := store.EnsureUser(ctx, userEmail, passwordHash, nil); err != nil {
+	if err := store.EnsureUser(ctx, userEmail, passwordHash, 1000000000000001); err != nil {
 		t.Fatalf("failed to bootstrap user: %v", err)
 	}
 

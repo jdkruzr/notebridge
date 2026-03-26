@@ -12,7 +12,7 @@ func TestUpsertScheduleGroup(t *testing.T) {
 	ctx := context.Background()
 
 	// Create a user
-	err := store.EnsureUser(ctx, "test@example.com", "hash", nil)
+	err := store.EnsureUser(ctx, "test@example.com", "hash", 1000000000000001)
 	if err != nil {
 		t.Fatalf("failed to create user: %v", err)
 	}
@@ -80,7 +80,7 @@ func TestUpsertScheduleGroupAutoGenerateID(t *testing.T) {
 	ctx := context.Background()
 
 	// Create a user
-	err := store.EnsureUser(ctx, "test@example.com", "hash", nil)
+	err := store.EnsureUser(ctx, "test@example.com", "hash", 1000000000000001)
 	if err != nil {
 		t.Fatalf("failed to create user: %v", err)
 	}
@@ -125,7 +125,7 @@ func TestUpdateScheduleGroupNotFound(t *testing.T) {
 	ctx := context.Background()
 
 	// Create a user
-	err := store.EnsureUser(ctx, "test@example.com", "hash", nil)
+	err := store.EnsureUser(ctx, "test@example.com", "hash", 1000000000000001)
 	if err != nil {
 		t.Fatalf("failed to create user: %v", err)
 	}
@@ -149,7 +149,7 @@ func TestDeleteScheduleGroupCascade(t *testing.T) {
 	ctx := context.Background()
 
 	// Create a user
-	err := store.EnsureUser(ctx, "test@example.com", "hash", nil)
+	err := store.EnsureUser(ctx, "test@example.com", "hash", 1000000000000001)
 	if err != nil {
 		t.Fatalf("failed to create user: %v", err)
 	}
@@ -243,7 +243,7 @@ func TestListScheduleGroupsPagination(t *testing.T) {
 	ctx := context.Background()
 
 	// Create a user
-	err := store.EnsureUser(ctx, "test@example.com", "hash", nil)
+	err := store.EnsureUser(ctx, "test@example.com", "hash", 1000000000000001)
 	if err != nil {
 		t.Fatalf("failed to create user: %v", err)
 	}
@@ -300,7 +300,7 @@ func TestUpsertScheduleTask(t *testing.T) {
 	ctx := context.Background()
 
 	// Create a user and group
-	err := store.EnsureUser(ctx, "test@example.com", "hash", nil)
+	err := store.EnsureUser(ctx, "test@example.com", "hash", 1000000000000001)
 	if err != nil {
 		t.Fatalf("failed to create user: %v", err)
 	}
@@ -388,7 +388,7 @@ func TestUpsertScheduleTaskAutoGenerateID(t *testing.T) {
 	ctx := context.Background()
 
 	// Create a user and group
-	err := store.EnsureUser(ctx, "test@example.com", "hash", nil)
+	err := store.EnsureUser(ctx, "test@example.com", "hash", 1000000000000001)
 	if err != nil {
 		t.Fatalf("failed to create user: %v", err)
 	}
@@ -436,7 +436,7 @@ func TestUpsertScheduleTaskInvalidGroup(t *testing.T) {
 	ctx := context.Background()
 
 	// Create a user
-	err := store.EnsureUser(ctx, "test@example.com", "hash", nil)
+	err := store.EnsureUser(ctx, "test@example.com", "hash", 1000000000000001)
 	if err != nil {
 		t.Fatalf("failed to create user: %v", err)
 	}
@@ -468,7 +468,7 @@ func TestBatchUpdateTasksAtomic(t *testing.T) {
 	ctx := context.Background()
 
 	// Create a user and group
-	err := store.EnsureUser(ctx, "test@example.com", "hash", nil)
+	err := store.EnsureUser(ctx, "test@example.com", "hash", 1000000000000001)
 	if err != nil {
 		t.Fatalf("failed to create user: %v", err)
 	}
@@ -565,7 +565,7 @@ func TestBatchUpdateTasksFailOnMissing(t *testing.T) {
 	ctx := context.Background()
 
 	// Create a user and group
-	err := store.EnsureUser(ctx, "test@example.com", "hash", nil)
+	err := store.EnsureUser(ctx, "test@example.com", "hash", 1000000000000001)
 	if err != nil {
 		t.Fatalf("failed to create user: %v", err)
 	}
@@ -638,7 +638,7 @@ func TestDeleteScheduleTask(t *testing.T) {
 	ctx := context.Background()
 
 	// Create a user and group
-	err := store.EnsureUser(ctx, "test@example.com", "hash", nil)
+	err := store.EnsureUser(ctx, "test@example.com", "hash", 1000000000000001)
 	if err != nil {
 		t.Fatalf("failed to create user: %v", err)
 	}
@@ -698,7 +698,7 @@ func TestListScheduleTasksWithSyncToken(t *testing.T) {
 	ctx := context.Background()
 
 	// Create a user and group
-	err := store.EnsureUser(ctx, "test@example.com", "hash", nil)
+	err := store.EnsureUser(ctx, "test@example.com", "hash", 1000000000000001)
 	if err != nil {
 		t.Fatalf("failed to create user: %v", err)
 	}
@@ -798,7 +798,7 @@ func TestListScheduleTasksWithoutSyncToken(t *testing.T) {
 	ctx := context.Background()
 
 	// Create a user and group
-	err := store.EnsureUser(ctx, "test@example.com", "hash", nil)
+	err := store.EnsureUser(ctx, "test@example.com", "hash", 1000000000000001)
 	if err != nil {
 		t.Fatalf("failed to create user: %v", err)
 	}

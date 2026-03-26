@@ -76,11 +76,14 @@ func main() {
 	// Create store
 	store := syncdb.NewStore(db)
 
+	// Create SnowflakeGenerator (needed for user bootstrap)
+	snowflake := sync.NewSnowflakeGenerator()
+
 	// Bootstrap user with EnsureUser
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 
-	if err := store.EnsureUser(ctx, cfg.UserEmail, cfg.UserPasswordHash, nil); err != nil {
+	if err := store.EnsureUser(ctx, cfg.UserEmail, cfg.UserPasswordHash, snowflake.Generate()); err != nil {
 		logger.Error("failed to bootstrap user", "error", err)
 		os.Exit(1)
 	}
@@ -88,15 +91,11 @@ func main() {
 	logger.Info("user bootstrapped", "email", cfg.UserEmail)
 
 	// Get or create JWT secret from store
-	// AuthService will call GetOrCreateJWTSecret as needed
 	_, err = store.GetOrCreateJWTSecret(ctx)
 	if err != nil {
 		logger.Error("failed to get or create JWT secret", "error", err)
 		os.Exit(1)
 	}
-
-	// Create SnowflakeGenerator
-	snowflake := sync.NewSnowflakeGenerator()
 
 	// Create AuthService
 	authService := sync.NewAuthService(store, snowflake)

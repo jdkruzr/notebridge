@@ -215,13 +215,13 @@ func NewStore(db *sql.DB) *Store {
 
 // EnsureUser inserts a user if it doesn't exist (INSERT OR IGNORE).
 // If snowflake is provided, it's used to generate the user ID; otherwise SQLite auto-increments.
-func (s *Store) EnsureUser(ctx context.Context, email, passwordHash string, snowflake interface{}) error {
+func (s *Store) EnsureUser(ctx context.Context, email, passwordHash string, snowflakeID int64) error {
 	query := `
-		INSERT OR IGNORE INTO users (email, password_hash, error_count, last_error_at, locked_until)
-		VALUES (?, ?, 0, NULL, NULL)
+		INSERT OR IGNORE INTO users (id, email, password_hash, error_count, last_error_at, locked_until)
+		VALUES (?, ?, ?, 0, NULL, NULL)
 	`
 
-	_, err := s.db.ExecContext(ctx, query, email, passwordHash)
+	_, err := s.db.ExecContext(ctx, query, snowflakeID, email, passwordHash)
 	return err
 }
 

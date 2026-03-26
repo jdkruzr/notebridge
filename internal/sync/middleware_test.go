@@ -30,7 +30,7 @@ func TestAuthMiddlewareValidToken(t *testing.T) {
 
 	// Create user and get valid token
 	passwordHash := "md5hash"
-	err = store.EnsureUser(ctx, "test@example.com", passwordHash, nil)
+	err = store.EnsureUser(ctx, "test@example.com", passwordHash, 1000000000000001)
 	if err != nil {
 		t.Fatalf("failed to ensure user: %v", err)
 	}

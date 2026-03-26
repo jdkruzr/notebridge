@@ -11,7 +11,7 @@ func TestCreateSummary(t *testing.T) {
 	ctx := context.Background()
 
 	// Create a user
-	err := store.EnsureUser(ctx, "test@example.com", "hash", nil)
+	err := store.EnsureUser(ctx, "test@example.com", "hash", 1000000000000001)
 	if err != nil {
 		t.Fatalf("failed to create user: %v", err)
 	}
@@ -60,7 +60,7 @@ func TestCreateSummaryDuplicateUniqueID(t *testing.T) {
 	ctx := context.Background()
 
 	// Create a user
-	err := store.EnsureUser(ctx, "test@example.com", "hash", nil)
+	err := store.EnsureUser(ctx, "test@example.com", "hash", 1000000000000001)
 	if err != nil {
 		t.Fatalf("failed to create user: %v", err)
 	}
@@ -110,7 +110,7 @@ func TestUpdateSummary(t *testing.T) {
 	ctx := context.Background()
 
 	// Create a user
-	err := store.EnsureUser(ctx, "test@example.com", "hash", nil)
+	err := store.EnsureUser(ctx, "test@example.com", "hash", 1000000000000001)
 	if err != nil {
 		t.Fatalf("failed to create user: %v", err)
 	}
@@ -159,7 +159,7 @@ func TestUpdateSummaryNotFound(t *testing.T) {
 	ctx := context.Background()
 
 	// Create a user
-	err := store.EnsureUser(ctx, "test@example.com", "hash", nil)
+	err := store.EnsureUser(ctx, "test@example.com", "hash", 1000000000000001)
 	if err != nil {
 		t.Fatalf("failed to create user: %v", err)
 	}
@@ -183,7 +183,7 @@ func TestDeleteSummary(t *testing.T) {
 	ctx := context.Background()
 
 	// Create a user
-	err := store.EnsureUser(ctx, "test@example.com", "hash", nil)
+	err := store.EnsureUser(ctx, "test@example.com", "hash", 1000000000000001)
 	if err != nil {
 		t.Fatalf("failed to create user: %v", err)
 	}
@@ -232,7 +232,7 @@ func TestListSummaryGroups(t *testing.T) {
 	ctx := context.Background()
 
 	// Create a user
-	err := store.EnsureUser(ctx, "test@example.com", "hash", nil)
+	err := store.EnsureUser(ctx, "test@example.com", "hash", 1000000000000001)
 	if err != nil {
 		t.Fatalf("failed to create user: %v", err)
 	}
@@ -298,7 +298,7 @@ func TestListSummaries(t *testing.T) {
 	ctx := context.Background()
 
 	// Create a user
-	err := store.EnsureUser(ctx, "test@example.com", "hash", nil)
+	err := store.EnsureUser(ctx, "test@example.com", "hash", 1000000000000001)
 	if err != nil {
 		t.Fatalf("failed to create user: %v", err)
 	}
@@ -364,7 +364,7 @@ func TestListSummariesWithParentFilter(t *testing.T) {
 	ctx := context.Background()
 
 	// Create a user
-	err := store.EnsureUser(ctx, "test@example.com", "hash", nil)
+	err := store.EnsureUser(ctx, "test@example.com", "hash", 1000000000000001)
 	if err != nil {
 		t.Fatalf("failed to create user: %v", err)
 	}
@@ -450,7 +450,7 @@ func TestListSummaryHashes(t *testing.T) {
 	ctx := context.Background()
 
 	// Create a user
-	err := store.EnsureUser(ctx, "test@example.com", "hash", nil)
+	err := store.EnsureUser(ctx, "test@example.com", "hash", 1000000000000001)
 	if err != nil {
 		t.Fatalf("failed to create user: %v", err)
 	}
@@ -510,7 +510,7 @@ func TestGetSummariesByIDs(t *testing.T) {
 	ctx := context.Background()
 
 	// Create a user
-	err := store.EnsureUser(ctx, "test@example.com", "hash", nil)
+	err := store.EnsureUser(ctx, "test@example.com", "hash", 1000000000000001)
 	if err != nil {
 		t.Fatalf("failed to create user: %v", err)
 	}
@@ -561,7 +561,7 @@ func TestPaginationWorksForAllOperations(t *testing.T) {
 	ctx := context.Background()
 
 	// Create a user
-	err := store.EnsureUser(ctx, "test@example.com", "hash", nil)
+	err := store.EnsureUser(ctx, "test@example.com", "hash", 1000000000000001)
 	if err != nil {
 		t.Fatalf("failed to create user: %v", err)
 	}

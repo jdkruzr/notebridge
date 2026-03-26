@@ -17,13 +17,13 @@ func TestEnsureUser(t *testing.T) {
 	ctx := context.Background()
 
 	// First call should create user
-	err = store.EnsureUser(ctx, "test@example.com", "passwordhash", nil)
+	err = store.EnsureUser(ctx, "test@example.com", "passwordhash", 1000000000000001)
 	if err != nil {
 		t.Fatalf("failed to ensure user: %v", err)
 	}
 
 	// Second call should be no-op
-	err = store.EnsureUser(ctx, "test@example.com", "differenthash", nil)
+	err = store.EnsureUser(ctx, "test@example.com", "differenthash", 1000000000000001)
 	if err != nil {
 		t.Fatalf("failed to ensure user second time: %v", err)
 	}
@@ -64,7 +64,7 @@ func TestGetUserByEmail(t *testing.T) {
 	}
 
 	// Create and retrieve user
-	err = store.EnsureUser(ctx, "test@example.com", "hash123", nil)
+	err = store.EnsureUser(ctx, "test@example.com", "hash123", 1000000000000001)
 	if err != nil {
 		t.Fatalf("failed to ensure user: %v", err)
 	}
@@ -92,7 +92,7 @@ func TestErrorCount(t *testing.T) {
 	ctx := context.Background()
 
 	// Create user
-	err = store.EnsureUser(ctx, "test@example.com", "hash", nil)
+	err = store.EnsureUser(ctx, "test@example.com", "hash", 1000000000000001)
 	if err != nil {
 		t.Fatalf("failed to ensure user: %v", err)
 	}
@@ -144,7 +144,7 @@ func TestLockUser(t *testing.T) {
 	ctx := context.Background()
 
 	// Create user
-	err = store.EnsureUser(ctx, "test@example.com", "hash", nil)
+	err = store.EnsureUser(ctx, "test@example.com", "hash", 1000000000000001)
 	if err != nil {
 		t.Fatalf("failed to ensure user: %v", err)
 	}
@@ -217,7 +217,7 @@ func TestToken(t *testing.T) {
 	ctx := context.Background()
 
 	// Create user
-	err = store.EnsureUser(ctx, "test@example.com", "hash", nil)
+	err = store.EnsureUser(ctx, "test@example.com", "hash", 1000000000000001)
 	if err != nil {
 		t.Fatalf("failed to ensure user: %v", err)
 	}
@@ -270,7 +270,7 @@ func TestGetTokenExpired(t *testing.T) {
 	ctx := context.Background()
 
 	// Create user
-	err = store.EnsureUser(ctx, "test@example.com", "hash", nil)
+	err = store.EnsureUser(ctx, "test@example.com", "hash", 1000000000000001)
 	if err != nil {
 		t.Fatalf("failed to ensure user: %v", err)
 	}
@@ -331,7 +331,7 @@ func TestEnsureEquipment(t *testing.T) {
 	ctx := context.Background()
 
 	// Create user
-	err = store.EnsureUser(ctx, "test@example.com", "hash", nil)
+	err = store.EnsureUser(ctx, "test@example.com", "hash", 1000000000000001)
 	if err != nil {
 		t.Fatalf("failed to ensure user: %v", err)
 	}
@@ -427,7 +427,7 @@ func TestCleanupExpired(t *testing.T) {
 	ctx := context.Background()
 
 	// Create user
-	err = store.EnsureUser(ctx, "test@example.com", "hash", nil)
+	err = store.EnsureUser(ctx, "test@example.com", "hash", 1000000000000001)
 	if err != nil {
 		t.Fatalf("failed to ensure user: %v", err)
 	}
