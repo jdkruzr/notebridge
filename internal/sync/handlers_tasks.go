@@ -321,10 +321,16 @@ func (s *Server) handleBatchUpdateTasks(w http.ResponseWriter, r *http.Request) 
 			return
 		}
 
-		// The device sends task fields directly in the object (no nested "fields" key).
-		// Convert camelCase field names to snake_case for the store.
-		fields := convertFieldNames(itemMap)
-		// Remove taskId from fields — it's the key, not a field to update
+		// Support both formats:
+		// - Nested: {"taskId": "...", "fields": {"status": "1"}} (Settings app)
+		// - Flat:   {"taskId": "...", "status": "1", ...} (file sync client)
+		var fieldsRaw map[string]interface{}
+		if nested, ok := itemMap["fields"].(map[string]interface{}); ok {
+			fieldsRaw = nested
+		} else {
+			fieldsRaw = itemMap
+		}
+		fields := convertFieldNames(fieldsRaw)
 		delete(fields, "task_id")
 
 		updates = append(updates, syncdb.TaskUpdate{
