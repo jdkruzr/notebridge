@@ -1517,17 +1517,19 @@ func (s *Store) ListScheduleTasks(ctx context.Context, userID int64, page, pageS
 // === Summary Methods ===
 
 // CreateSummary inserts a new summary with Snowflake ID.
-// Checks uniqueness on (user_id, unique_identifier).
+// Checks uniqueness on (user_id, unique_identifier) only when identifier is non-empty.
 func (s *Store) CreateSummary(ctx context.Context, sum *Summary) error {
-	// Check uniqueness
-	query := `SELECT 1 FROM summaries WHERE user_id = ? AND unique_identifier = ?`
-	var dummy int
-	err := s.db.QueryRowContext(ctx, query, sum.UserID, sum.UniqueIdentifier).Scan(&dummy)
-	if err == nil {
-		return ErrUniqueIDExists // Already exists
-	}
-	if err != nil && err != sql.ErrNoRows {
-		return err
+	// Check uniqueness only if unique_identifier is provided
+	if sum.UniqueIdentifier != "" {
+		query := `SELECT 1 FROM summaries WHERE user_id = ? AND unique_identifier = ?`
+		var dummy int
+		err := s.db.QueryRowContext(ctx, query, sum.UserID, sum.UniqueIdentifier).Scan(&dummy)
+		if err == nil {
+			return ErrUniqueIDExists // Already exists
+		}
+		if err != nil && err != sql.ErrNoRows {
+			return err
+		}
 	}
 
 	now := time.Now().Format(time.RFC3339Nano)
@@ -1540,11 +1542,11 @@ func (s *Store) CreateSummary(ctx context.Context, sum *Summary) error {
 		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 	`
 
-	_, err = s.db.ExecContext(ctx, insertQuery,
+	_, insertErr := s.db.ExecContext(ctx, insertQuery,
 		sum.ID, sum.UserID, sum.UniqueIdentifier, sum.Name, sum.Description, sum.FileID, sum.ParentUniqueIdentifier, sum.Content,
 		sum.DataSource, sum.SourcePath, sum.SourceType, sum.Tags, sum.MD5Hash, sum.HandwriteMD5, sum.HandwriteInnerName, sum.Metadata,
-		sum.CommentStr, &sum.HandwriteFields, sum.CommentHandwriteName, sum.IsSummaryGroup, sum.Author, sum.CreationTime, sum.LastModifiedTime, now)
-	return err
+		sum.CommentStr, sum.HandwriteFields, sum.CommentHandwriteName, sum.IsSummaryGroup, sum.Author, sum.CreationTime, sum.LastModifiedTime, now)
+	return insertErr
 }
 
 // UpdateSummary partially updates a summary.
