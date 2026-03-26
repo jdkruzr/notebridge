@@ -118,7 +118,8 @@ echo
 # --- create directories ---
 
 info "Creating data directories"
-mkdir -p "$DATA_DIR"/{storage,backups,cache}
+mkdir -p "$DATA_DIR"/{storage,backups,cache/chunks}
+mkdir -p "$DATA_DIR"/storage/{DOCUMENT/Document,NOTE/Note,NOTE/MyStyle,EXPORT,SCREENSHOT,INBOX}
 ok "Directories created at $DATA_DIR"
 
 echo

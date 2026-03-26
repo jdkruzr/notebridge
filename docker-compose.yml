@@ -13,6 +13,6 @@ services:
       - NB_BACKUP_PATH=/data/backups
       - NB_CACHE_PATH=/data/cache
       - NB_BLOB_STORE_PATH=/data/storage
-      - NB_CHUNK_STORE_PATH=/data/storage/chunks
+      - NB_CHUNK_STORE_PATH=/data/cache/chunks
     env_file:
       - notebridge.env

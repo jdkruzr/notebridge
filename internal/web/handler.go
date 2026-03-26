@@ -401,6 +401,9 @@ func (h *Handler) handleFiles(w http.ResponseWriter, r *http.Request) {
 	}
 
 	rawPath := r.URL.Query().Get("path")
+	if rawPath == "" {
+		rawPath = "NOTE/Note"
+	}
 	relPath, ok := safeRelPath(rawPath)
 	if !ok {
 		http.Error(w, "invalid path", http.StatusBadRequest)

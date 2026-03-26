@@ -95,7 +95,7 @@ func Load() (*Config, error) {
 		BackupPath:       envOrDefault("NB_BACKUP_PATH", "/data/backups"),
 		CachePath:        envOrDefault("NB_CACHE_PATH", "/data/cache"),
 		BlobStorePath:    envOrDefault("NB_BLOB_STORE_PATH", "/data/storage"),
-		ChunkStorePath:   envOrDefault("NB_CHUNK_STORE_PATH", "/data/storage/chunks"),
+		ChunkStorePath:   envOrDefault("NB_CHUNK_STORE_PATH", "/data/cache/chunks"),
 		BaseURL:          os.Getenv("NB_BASE_URL"),
 		SyncListenAddr:   envOrDefault("NB_SYNC_LISTEN_ADDR", ":19072"),
 		LogLevel:         envOrDefault("NB_LOG_LEVEL", "info"),

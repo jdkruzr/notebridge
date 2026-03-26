@@ -286,7 +286,7 @@ func TestFileBrowser(t *testing.T) {
 			SizeBytes: 2048,
 		},
 	}
-	deps.noteStore.files[""] = testFiles
+	deps.noteStore.files["NOTE/Note"] = testFiles
 
 	resp, err := http.Get(server.URL + "/files")
 	if err != nil {
