@@ -147,13 +147,16 @@ func (s *Server) handleQueryV3(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if file == nil {
-		jsonError(w, ErrBadRequest("file not found"))
+		jsonSuccess(w, map[string]interface{}{"equipmentNo": equipmentNo, "entriesVO": nil})
 		return
 	}
 
-	// Format as entriesVO
+	tag := "file"
+	if file.IsFolder {
+		tag = "folder"
+	}
 	entry := map[string]interface{}{
-		"tag":             "file",
+		"tag":             tag,
 		"id":              file.ID,
 		"name":            file.FileName,
 		"path_display":    "/" + file.FileName,
@@ -163,9 +166,9 @@ func (s *Server) handleQueryV3(w http.ResponseWriter, r *http.Request) {
 		"is_downloadable": !file.IsFolder,
 	}
 
-	// Return success
 	jsonSuccess(w, map[string]interface{}{
-		"entries": []map[string]interface{}{entry},
+		"equipmentNo": equipmentNo,
+		"entriesVO": entry,
 	})
 }
 
@@ -213,13 +216,16 @@ func (s *Server) handleQueryByPathV3(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if file == nil {
-		jsonError(w, ErrBadRequest("file not found"))
+		jsonSuccess(w, map[string]interface{}{"equipmentNo": equipmentNo, "entriesVO": nil})
 		return
 	}
 
-	// Format as entriesVO
+	tag := "file"
+	if file.IsFolder {
+		tag = "folder"
+	}
 	entry := map[string]interface{}{
-		"tag":             "file",
+		"tag":             tag,
 		"id":              file.ID,
 		"name":            file.FileName,
 		"path_display":    "/" + file.FileName,
@@ -229,9 +235,9 @@ func (s *Server) handleQueryByPathV3(w http.ResponseWriter, r *http.Request) {
 		"is_downloadable": !file.IsFolder,
 	}
 
-	// Return success
 	jsonSuccess(w, map[string]interface{}{
-		"entries": []map[string]interface{}{entry},
+		"equipmentNo": equipmentNo,
+		"entriesVO": entry,
 	})
 }
 
