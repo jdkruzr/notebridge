@@ -3,6 +3,7 @@ package sync
 import (
 	"encoding/json"
 	"net/http"
+	"strconv"
 	"strings"
 )
 
@@ -74,20 +75,24 @@ func bodyStr(m map[string]interface{}, key string) string {
 }
 
 // bodyInt extracts an int64 value from a parsed JSON body.
-// Handles json.Number (from UseNumber() decoder) and float64 types.
+// Handles json.Number, float64, and string types (tablet sends IDs as strings).
 // Returns 0 if the key is missing or cannot be converted to int64.
 func bodyInt(m map[string]interface{}, key string) int64 {
-	if v, ok := m[key]; ok {
-		switch x := v.(type) {
-		case json.Number:
-			// Parse json.Number string to int64
-			val, err := x.Int64()
-			if err == nil {
-				return val
-			}
-		case float64:
-			return int64(x)
+	v, ok := m[key]
+	if !ok || v == nil {
+		return 0
+	}
+	switch x := v.(type) {
+	case json.Number:
+		val, err := x.Int64()
+		if err == nil {
+			return val
 		}
+	case float64:
+		return int64(x)
+	case string:
+		val, _ := strconv.ParseInt(x, 10, 64)
+		return val
 	}
 	return 0
 }

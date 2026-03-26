@@ -163,19 +163,24 @@ func (s *Server) handleListFolderV3(w http.ResponseWriter, r *http.Request) {
 	// Filter out stale entries (verify file exists on disk)
 	var result []map[string]interface{}
 	for _, entry := range entries {
-		// Skip folders and check disk existence for files
-		if !entry.IsFolder && !s.blobStore.Exists(r.Context(), entry.StorageKey) {
+		// Skip files that don't exist on disk (folders are always listed)
+		if !entry.IsFolder && entry.StorageKey != "" && !s.blobStore.Exists(r.Context(), entry.StorageKey) {
 			continue
 		}
 
+		tag := "file"
+		if entry.IsFolder {
+			tag = "folder"
+		}
+
 		result = append(result, map[string]interface{}{
-			"tag":               "file",
+			"tag":               tag,
 			"id":                entry.ID,
 			"name":              entry.FileName,
 			"path_display":      "/" + entry.FileName,
 			"content_hash":      entry.MD5,
 			"size":              entry.Size,
-			"lastUpdateTime":    entry.UpdatedAt.Unix() * 1000, // Convert to milliseconds
+			"lastUpdateTime":    entry.UpdatedAt.Unix() * 1000,
 			"is_downloadable":   !entry.IsFolder,
 			"parent_path":       "/",
 		})
@@ -233,12 +238,17 @@ func (s *Server) handleListFolderV2(w http.ResponseWriter, r *http.Request) {
 	// Filter out stale entries
 	var result []map[string]interface{}
 	for _, entry := range entries {
-		if !entry.IsFolder && !s.blobStore.Exists(r.Context(), entry.StorageKey) {
+		if !entry.IsFolder && entry.StorageKey != "" && !s.blobStore.Exists(r.Context(), entry.StorageKey) {
 			continue
 		}
 
+		tag := "file"
+		if entry.IsFolder {
+			tag = "folder"
+		}
+
 		result = append(result, map[string]interface{}{
-			"tag":               "file",
+			"tag":               tag,
 			"id":                entry.ID,
 			"name":              entry.FileName,
 			"path_display":      "/" + entry.FileName,
