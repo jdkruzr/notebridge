@@ -33,6 +33,7 @@ var (
 
 	// Schedule task fields
 	scheduleTaskAllowedFields = map[string]bool{
+		"task_list_id":        true,
 		"title":               true,
 		"detail":              true,
 		"status":              true,
@@ -40,6 +41,7 @@ var (
 		"recurrence":          true,
 		"links":               true,
 		"is_reminder_on":      true,
+		"is_deleted":          true,
 		"due_time":            true,
 		"completed_time":      true,
 		"last_modified":       true,
