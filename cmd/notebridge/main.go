@@ -83,12 +83,34 @@ func main() {
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 
-	if err := store.EnsureUser(ctx, cfg.UserEmail, cfg.UserPasswordHash, snowflake.Generate()); err != nil {
+	// Use configured user ID (from SPC migration) or generate new Snowflake
+	userSnowflakeID := cfg.UserID
+	if userSnowflakeID == 0 {
+		userSnowflakeID = snowflake.Generate()
+	}
+
+	if err := store.EnsureUser(ctx, cfg.UserEmail, cfg.UserPasswordHash, userSnowflakeID); err != nil {
 		logger.Error("failed to bootstrap user", "error", err)
 		os.Exit(1)
 	}
 
-	logger.Info("user bootstrapped", "email", cfg.UserEmail)
+	// Generate machine ID if not configured (SPC migration provides it)
+	machineID := cfg.MachineID
+	if machineID == "" {
+		machineID, err = store.GetOrCreateMachineID(ctx)
+		if err != nil {
+			logger.Error("failed to get or create machine ID", "error", err)
+			os.Exit(1)
+		}
+	} else {
+		// Store configured machine ID
+		if err := store.SetMachineID(ctx, machineID); err != nil {
+			logger.Error("failed to store machine ID", "error", err)
+			os.Exit(1)
+		}
+	}
+
+	logger.Info("user bootstrapped", "email", cfg.UserEmail, "machineID", machineID)
 
 	// Get or create JWT secret from store
 	_, err = store.GetOrCreateJWTSecret(ctx)
@@ -117,7 +139,7 @@ func main() {
 	defer rateLimiter.Stop()
 
 	// Create sync.Server
-	server := sync.NewServer(store, authService, blobStore, chunkStore, snowflake, logger, eventBus, notifier, rateLimiter, cfg.BaseURL)
+	server := sync.NewServer(store, authService, blobStore, chunkStore, snowflake, logger, eventBus, notifier, rateLimiter, cfg.BaseURL, machineID)
 
 	// Subscribe notifier to file events and broadcast ServerMessage to connected clients
 	eventTypes := []string{events.FileUploaded, events.FileModified, events.FileDeleted}

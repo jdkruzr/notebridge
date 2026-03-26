@@ -474,6 +474,40 @@ func (s *Store) GetOrCreateJWTSecret(ctx context.Context) (string, error) {
 	return secret, nil
 }
 
+// GetOrCreateMachineID reads the machine ID from server_settings, or generates a new one.
+func (s *Store) GetOrCreateMachineID(ctx context.Context) (string, error) {
+	var id string
+	err := s.db.QueryRowContext(ctx,
+		`SELECT value FROM server_settings WHERE key = 'machine_id'`).Scan(&id)
+	if err == nil {
+		return id, nil
+	}
+	if err != sql.ErrNoRows {
+		return "", err
+	}
+
+	// Generate new machine ID (32 random bytes, base64url, no padding)
+	randomBytes := make([]byte, 24)
+	if _, err := rand.Read(randomBytes); err != nil {
+		return "", fmt.Errorf("failed to generate machine ID: %w", err)
+	}
+	id = hex.EncodeToString(randomBytes)[:32]
+
+	_, err = s.db.ExecContext(ctx,
+		`INSERT INTO server_settings (key, value) VALUES ('machine_id', ?)`, id)
+	if err != nil {
+		return "", fmt.Errorf("failed to store machine ID: %w", err)
+	}
+	return id, nil
+}
+
+// SetMachineID stores a machine ID (e.g., from SPC migration).
+func (s *Store) SetMachineID(ctx context.Context, machineID string) error {
+	_, err := s.db.ExecContext(ctx,
+		`INSERT OR REPLACE INTO server_settings (key, value) VALUES ('machine_id', ?)`, machineID)
+	return err
+}
+
 // EnsureEquipment inserts equipment if it doesn't exist (INSERT OR IGNORE).
 func (s *Store) EnsureEquipment(ctx context.Context, equipmentNo string, userID int64) error {
 	query := `

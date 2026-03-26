@@ -23,6 +23,7 @@ type Server struct {
 	notifier    *NotifyManager
 	rateLimiter *RateLimiter
 	baseURL     string
+	machineID   string
 }
 
 // NewServer creates a new Server instance.
@@ -37,6 +38,7 @@ func NewServer(
 	notifier *NotifyManager,
 	rateLimiter *RateLimiter,
 	baseURL string,
+	machineID string,
 ) *Server {
 	return &Server{
 		store:       store,
@@ -49,6 +51,7 @@ func NewServer(
 		notifier:    notifier,
 		rateLimiter: rateLimiter,
 		baseURL:     strings.TrimRight(baseURL, "/"),
+		machineID:   machineID,
 	}
 }
 

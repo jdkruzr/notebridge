@@ -82,6 +82,11 @@ prompt WEB_USERNAME "Web UI username" "admin"
 prompt_password WEB_PASSWORD "Web UI password"
 
 echo
+info "SPC Migration (leave blank for new installs)"
+prompt SPC_USER_ID "SPC user ID (from u_user.user_id)" ""
+prompt SPC_MACHINE_ID "SPC machine ID (from t_machine_id)" ""
+
+echo
 
 # --- generate secrets ---
 
@@ -145,6 +150,8 @@ NB_LOG_FORMAT=json
 NB_JWT_SECRET=$(escape_dollars "$JWT_SECRET")
 NB_USER_EMAIL=$USER_EMAIL
 NB_USER_PASSWORD_HASH=$USER_PASSWORD_HASH
+NB_USER_ID=$SPC_USER_ID
+NB_MACHINE_ID=$SPC_MACHINE_ID
 NB_WEB_USERNAME=$WEB_USERNAME
 NB_WEB_PASSWORD_HASH=$(escape_dollars "$WEB_PASSWORD_HASH")
 ENVEOF

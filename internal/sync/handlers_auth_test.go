@@ -66,7 +66,7 @@ func setupTestServer(t *testing.T) (*httptest.Server, *syncdb.Store) {
 	})
 
 	// Create server with placeholder baseURL — updated after httptest.Server starts
-	server := NewServer(store, authService, blobStore, chunkStore, snowflake, logger, eventBus, notifier, rateLimiter, "")
+	server := NewServer(store, authService, blobStore, chunkStore, snowflake, logger, eventBus, notifier, rateLimiter, "", "test-machine-id")
 
 	// Create httptest.Server with the handler
 	httpServer := httptest.NewServer(server.Handler())

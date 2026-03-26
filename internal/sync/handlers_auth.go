@@ -138,10 +138,10 @@ func (s *Server) handleCheckUserExists(w http.ResponseWriter, r *http.Request) {
 	email := bodyStr(body, "email")
 	user, _ := s.store.GetUserByEmail(r.Context(), email)
 	if user == nil {
-		jsonSuccess(w, map[string]interface{}{"userId": 0, "dms": "ALL", "uniqueMachineId": ""})
+		jsonSuccess(w, map[string]interface{}{"userId": 0, "dms": "ALL", "uniqueMachineId": s.machineID})
 		return
 	}
-	jsonSuccess(w, map[string]interface{}{"userId": user.ID, "dms": "ALL", "uniqueMachineId": ""})
+	jsonSuccess(w, map[string]interface{}{"userId": user.ID, "dms": "ALL", "uniqueMachineId": s.machineID})
 }
 
 // handleBindEquipment handles POST /api/terminal/user/bindEquipment.

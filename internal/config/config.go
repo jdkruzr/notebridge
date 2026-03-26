@@ -34,6 +34,8 @@ type Config struct {
 	// Authentication
 	UserEmail         string
 	UserPasswordHash  string
+	UserID            int64  // Optional: Snowflake ID from SPC migration. Auto-generated if 0.
+	MachineID         string // Optional: unique machine ID from SPC migration. Auto-generated if empty.
 	WebUsername       string
 	WebPasswordHash   string
 
@@ -105,6 +107,8 @@ func Load() (*Config, error) {
 		LogSyslogAddr:    os.Getenv("NB_LOG_SYSLOG_ADDR"),
 		UserEmail:        os.Getenv("NB_USER_EMAIL"),
 		UserPasswordHash: os.Getenv("NB_USER_PASSWORD_HASH"),
+		UserID:           parseOptionalInt64(os.Getenv("NB_USER_ID")),
+		MachineID:        os.Getenv("NB_MACHINE_ID"),
 		WebUsername:      envOrDefault("NB_WEB_USERNAME", "admin"),
 		WebPasswordHash:  os.Getenv("NB_WEB_PASSWORD_HASH"),
 		OCREnabled:       ocrEnabled,
@@ -139,6 +143,14 @@ func Load() (*Config, error) {
 	}
 
 	return cfg, nil
+}
+
+func parseOptionalInt64(s string) int64 {
+	if s == "" {
+		return 0
+	}
+	n, _ := strconv.ParseInt(s, 10, 64)
+	return n
 }
 
 // envOrDefault returns the environment variable value, or the default if not set.
