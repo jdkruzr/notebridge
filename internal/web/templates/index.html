@@ -221,7 +221,7 @@
         <h1>NoteBridge Tasks</h1>
 
         <div class="tabs">
-            <button class="tab-button {{if eq .activeTab "tasks"}}active{{end}}" onclick="switchTab('tasks')">Tasks</button>
+            <a class="tab-button {{if eq .activeTab "tasks"}}active{{end}}" href="/" style="text-decoration:none;">Tasks</a>
             <button class="tab-button {{if eq .activeTab "logs"}}active{{end}}" onclick="switchTab('logs')">Logs</button>
             <a class="tab-button {{if eq .activeTab "files"}}active{{end}}" href="/files" style="text-decoration:none;">Files</a>
             <a class="tab-button {{if eq .activeTab "search"}}active{{end}}" href="/search" style="text-decoration:none;">Search</a>
