@@ -148,24 +148,31 @@ func (s *Store) executeJob(ctx context.Context, job *Job) error {
 
 		tp, err := currentNote.TotalPathData(p)
 		if err != nil || tp == nil {
+			s.logger.Info("skipping page (no TOTALPATH)", "page", pageIdx, "path", job.NotePath)
 			continue
 		}
 		pageW, pageH := currentNote.PageDimensions(p)
 		objs, err := gosnote.DecodeObjects(tp, pageW, pageH)
 		if err != nil {
+			s.logger.Warn("failed to decode objects", "page", pageIdx, "err", err)
 			continue
 		}
 		img := gosnote.RenderObjects(objs, pageW, pageH, nil)
 
 		var buf bytes.Buffer
 		if err := jpeg.Encode(&buf, img, &jpeg.Options{Quality: 90}); err != nil {
+			s.logger.Warn("failed to encode page JPEG", "page", pageIdx, "err", err)
 			continue
 		}
+
+		s.logger.Info("OCR: sending page", "page", pageIdx, "jpeg_bytes", buf.Len(), "path", job.NotePath)
 
 		text, err := s.cfg.OCRClient.Recognize(ctx, buf.Bytes())
 		if err != nil {
 			return fmt.Errorf("OCR page %d: %w", pageIdx, err)
 		}
+
+		s.logger.Info("OCR: result", "page", pageIdx, "text_len", len(text), "text_preview", truncateStr(text, 100))
 
 		// Only inject and write for Standard notes; RTR notes skip file modification
 		if !isRTR {
@@ -367,4 +374,11 @@ func parseMiniTags(b []byte) map[string]string {
 		s = s[start+end+1:]
 	}
 	return m
+}
+
+func truncateStr(s string, max int) string {
+	if len(s) <= max {
+		return s
+	}
+	return s[:max] + "..."
 }
