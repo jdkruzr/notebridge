@@ -13,7 +13,8 @@ func jsonSuccess(w http.ResponseWriter, extra map[string]interface{}) {
 	w.WriteHeader(http.StatusOK)
 
 	response := map[string]interface{}{
-		"cd": "000",
+		"cd":      "000",
+		"success": true,
 	}
 
 	// Merge extra fields
@@ -33,8 +34,11 @@ func jsonError(w http.ResponseWriter, err *SyncError) {
 	w.WriteHeader(err.HTTPStatus)
 
 	response := map[string]interface{}{
-		"cd":  err.Code,
-		"msg": err.Message,
+		"cd":        err.Code,
+		"msg":       err.Message,
+		"success":   false,
+		"errorCode": err.Code,
+		"errorMsg":  err.Message,
 	}
 
 	json.NewEncoder(w).Encode(response)
