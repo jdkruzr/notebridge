@@ -745,7 +745,7 @@ func (s *Store) CreateFile(ctx context.Context, f *FileEntry) error {
 // GetFile retrieves a file by ID and user_id.
 func (s *Store) GetFile(ctx context.Context, id int64, userID int64) (*FileEntry, error) {
 	query := `
-		SELECT id, user_id, directory_id, file_name, inner_name, storage_key, md5, size, is_folder, is_active, created_at, updated_at
+		SELECT id, user_id, directory_id, file_name, COALESCE(inner_name, ''), COALESCE(storage_key, ''), COALESCE(md5, ''), size, is_folder, is_active, COALESCE(created_at, ''), COALESCE(updated_at, '')
 		FROM files
 		WHERE id = ? AND user_id = ?
 	`
@@ -776,7 +776,7 @@ func (s *Store) GetFile(ctx context.Context, id int64, userID int64) (*FileEntry
 // GetFileByPath retrieves a file by user_id, directory_id, and file_name.
 func (s *Store) GetFileByPath(ctx context.Context, userID int64, directoryID int64, fileName string) (*FileEntry, error) {
 	query := `
-		SELECT id, user_id, directory_id, file_name, inner_name, storage_key, md5, size, is_folder, is_active, created_at, updated_at
+		SELECT id, user_id, directory_id, file_name, COALESCE(inner_name, ''), COALESCE(storage_key, ''), COALESCE(md5, ''), size, is_folder, is_active, COALESCE(created_at, ''), COALESCE(updated_at, '')
 		FROM files
 		WHERE user_id = ? AND directory_id = ? AND file_name = ? AND is_active = 'Y'
 	`
@@ -821,7 +821,10 @@ func (s *Store) UpdateFileMD5(ctx context.Context, id int64, md5 string, size in
 // ListFolder retrieves all files in a directory, ordered by is_folder DESC then file_name.
 func (s *Store) ListFolder(ctx context.Context, userID int64, directoryID int64) ([]FileEntry, error) {
 	query := `
-		SELECT id, user_id, directory_id, file_name, inner_name, storage_key, md5, size, is_folder, is_active, created_at, updated_at
+		SELECT id, user_id, directory_id, file_name,
+			COALESCE(inner_name, ''), COALESCE(storage_key, ''), COALESCE(md5, ''),
+			size, is_folder, is_active,
+			COALESCE(created_at, ''), COALESCE(updated_at, '')
 		FROM files
 		WHERE user_id = ? AND directory_id = ? AND is_active = 'Y'
 		ORDER BY is_folder DESC, file_name
@@ -1075,7 +1078,7 @@ func (s *Store) DB() *sql.DB {
 // Returns nil if not found (not an error).
 func (s *Store) GetFileByStorageKey(ctx context.Context, userID int64, storageKey string) (*FileEntry, error) {
 	query := `
-		SELECT id, user_id, directory_id, file_name, inner_name, storage_key, md5, size, is_folder, is_active, created_at, updated_at
+		SELECT id, user_id, directory_id, file_name, COALESCE(inner_name, ''), COALESCE(storage_key, ''), COALESCE(md5, ''), size, is_folder, is_active, COALESCE(created_at, ''), COALESCE(updated_at, '')
 		FROM files
 		WHERE user_id = ? AND storage_key = ? AND is_active = 'Y'
 	`
