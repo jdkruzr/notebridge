@@ -7,3 +7,4 @@ notebridge.env
 *.db-wal
 *.db-shm
 /data/
+troubleshooting.txt
