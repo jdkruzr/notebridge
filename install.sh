@@ -49,6 +49,16 @@ prompt_password() {
     done
 }
 
+# --- fresh install option ---
+
+FRESH_INSTALL=false
+NUKE_INSTALL=false
+if [[ "${1:-}" == "--fresh" || "${1:-}" == "-f" ]]; then
+    FRESH_INSTALL=true
+elif [[ "${1:-}" == "--nuke" ]]; then
+    NUKE_INSTALL=true
+fi
+
 # --- pre-flight checks ---
 
 info "NoteBridge Installer"
@@ -131,6 +141,21 @@ JWT_SECRET=$(openssl rand -hex 32)
 ok "JWT secret generated"
 
 echo
+
+# --- fresh install ---
+
+if [[ "$NUKE_INSTALL" == true ]]; then
+    warn "NUKE: deleting ALL data (database, storage, cache, backups)"
+    sudo docker compose -f "$SCRIPT_DIR/docker-compose.yml" stop notebridge 2>/dev/null || true
+    sudo rm -rf "$DATA_DIR"
+    ok "All data deleted"
+elif [[ "$FRESH_INSTALL" == true ]]; then
+    warn "Fresh install: clearing database and cache"
+    sudo docker compose -f "$SCRIPT_DIR/docker-compose.yml" stop notebridge 2>/dev/null || true
+    sudo rm -f "$DATA_DIR/notebridge.db" "$DATA_DIR/notebridge.db-wal" "$DATA_DIR/notebridge.db-shm"
+    sudo rm -rf "$DATA_DIR/cache" "$DATA_DIR/backups"
+    ok "Database and cache cleared (storage preserved)"
+fi
 
 # --- create directories ---
 
