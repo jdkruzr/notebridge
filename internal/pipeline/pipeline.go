@@ -78,7 +78,7 @@ func (p *Pipeline) runAll(ctx context.Context) {
 	if p.eventBus != nil {
 		p.eventBus.Subscribe(events.FileUploaded, func(e events.Event) {
 			if notestore.ClassifyFileType(filepath.Ext(e.Path)) == notestore.FileTypeNote {
-				p.enqueue(ctx, e.Path)
+				p.enqueue(ctx, filepath.Join(p.notesPath, e.Path))
 			}
 		})
 	}
