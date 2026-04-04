@@ -276,9 +276,8 @@ func (s *Server) handleUploadFinish(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	s.logger.Info("upload/finish", "filePath", filePath, "fileName", fileName)
-
 	contentHash := bodyStr(body, "content_hash")
+	s.logger.Info("upload/finish", "filePath", filePath, "fileName", fileName, "content_hash", contentHash, "hash_len", len(contentHash))
 	size := bodyInt(body, "size")
 
 	// Get userID from context
