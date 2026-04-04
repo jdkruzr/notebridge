@@ -420,6 +420,7 @@ func (s *Server) handleCopyV3(w http.ResponseWriter, r *http.Request) {
 	}
 
 	toPath := bodyStr(body, "to_path")
+	s.logger.Info("copy_v3", "id", fileID, "to_path", toPath, "autorename", bodyBool(body, "autorename"))
 	if toPath == "" {
 		jsonError(w, ErrBadRequest("missing or empty 'to_path' field"))
 		return

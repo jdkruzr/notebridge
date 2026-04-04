@@ -93,6 +93,7 @@ func (s *Server) handleSyncEnd(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Return success — match SPC format with null fields
+	s.logger.Info("synchronous/end", "equipmentNo", equipmentNo)
 	jsonSuccess(w, map[string]interface{}{
 		"errorCode":   nil,
 		"errorMsg":    nil,
