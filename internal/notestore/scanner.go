@@ -2,6 +2,7 @@ package notestore
 
 import (
 	"context"
+	"crypto/md5"
 	"crypto/sha256"
 	"database/sql"
 	"errors"
@@ -153,6 +154,20 @@ func ComputeSHA256(path string) (string, error) {
 	}
 	defer f.Close()
 	h := sha256.New()
+	if _, err := io.Copy(h, f); err != nil {
+		return "", err
+	}
+	return fmt.Sprintf("%x", h.Sum(nil)), nil
+}
+
+// ComputeMD5 returns the hex-encoded MD5 hash of a file.
+func ComputeMD5(path string) (string, error) {
+	f, err := os.Open(path)
+	if err != nil {
+		return "", err
+	}
+	defer f.Close()
+	h := md5.New()
 	if _, err := io.Copy(h, f); err != nil {
 		return "", err
 	}

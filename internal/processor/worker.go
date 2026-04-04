@@ -33,10 +33,8 @@ func (s *Store) processJob(ctx context.Context, job *Job) {
 	} else {
 		// Store SHA-256 of the final file state for move/rename detection.
 		// Hash failure is non-critical — log and continue.
-		var newMD5 string
 		var newSize int64
 		if hash, hashErr := notestore.ComputeSHA256(job.NotePath); hashErr == nil {
-			newMD5 = hash
 			if info, statErr := os.Stat(job.NotePath); statErr == nil {
 				newSize = info.Size()
 			}
@@ -48,9 +46,13 @@ func (s *Store) processJob(ctx context.Context, job *Job) {
 			s.logger.Warn("failed to compute content hash", "path", job.NotePath, "err", hashErr)
 		}
 
-		// Call AfterInject hook to update syncdb and publish event
+		// Call AfterInject hook to update syncdb with the file's MD5.
+		// Device sync uses MD5 (not SHA-256) for content_hash comparison.
 		if s.cfg.AfterInject != nil {
-			if err := s.cfg.AfterInject(ctx, job.NotePath, newMD5, newSize); err != nil {
+			fileMD5, md5Err := notestore.ComputeMD5(job.NotePath)
+			if md5Err != nil {
+				s.logger.Warn("failed to compute MD5 for AfterInject", "path", job.NotePath, "err", md5Err)
+			} else if err := s.cfg.AfterInject(ctx, job.NotePath, fileMD5, newSize); err != nil {
 				s.logger.Warn("post-injection hook failed", "path", job.NotePath, "err", err)
 				// Best-effort: don't fail the job
 			}
