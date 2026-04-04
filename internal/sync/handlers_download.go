@@ -10,7 +10,7 @@ import (
 // handleDownloadV3 handles POST /api/file/3/files/download_v3.
 // Generates a signed download URL for a file.
 // Expects JSON body: {"equipmentNo": "...", "id": 12345}
-// Returns: {"cd": "000", "id": 12345, "url": "...", "name": "...", "path_display": "...", "content_hash": "...", "size": 12345, "is_downloadable": true}
+// Returns: {"cd": "000", "id": 12345, "url": "...", "name": "...", "path_display": "...", "content_hash": "...", "size": 12345, "_downloadable": true}
 func (s *Server) handleDownloadV3(w http.ResponseWriter, r *http.Request) {
 	// Parse JSON body
 	body, err := parseJSONBody(r)
@@ -74,10 +74,10 @@ func (s *Server) handleDownloadV3(w http.ResponseWriter, r *http.Request) {
 		"id":              fileID,
 		"url":             downloadURL,
 		"name":            file.FileName,
-		"path_display":    "/" + file.FileName,
+		"path_display":    file.FileName,
 		"content_hash":    file.MD5,
 		"size":            file.Size,
-		"is_downloadable": true,
+		"_downloadable": true,
 	})
 }
 

@@ -361,7 +361,7 @@ func (s *Server) handleUploadFinish(w http.ResponseWriter, r *http.Request) {
 	// Return success with file metadata
 	jsonSuccess(w, map[string]interface{}{
 		"equipmentNo":  equipmentNo,
-		"path_display": "/" + filePath + fileName,
+		"path_display": filePath + fileName,
 		"id":           fileID,
 		"size":         size,
 		"name":         fileName,

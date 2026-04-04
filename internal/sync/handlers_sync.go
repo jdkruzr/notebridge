@@ -92,6 +92,10 @@ func (s *Server) handleSyncEnd(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Return success
-	jsonSuccess(w, nil)
+	// Return success — match SPC format with null fields
+	jsonSuccess(w, map[string]interface{}{
+		"errorCode":   nil,
+		"errorMsg":    nil,
+		"equipmentNo": nil,
+	})
 }

@@ -159,11 +159,11 @@ func (s *Server) handleQueryV3(w http.ResponseWriter, r *http.Request) {
 		"tag":             tag,
 		"id":              file.ID,
 		"name":            file.FileName,
-		"path_display":    "/" + file.FileName,
+		"path_display":    file.FileName,
 		"content_hash":    file.MD5,
 		"size":            file.Size,
 		"lastUpdateTime":  file.UpdatedAt.Unix() * 1000,
-		"is_downloadable": !file.IsFolder,
+		"_downloadable": !file.IsFolder,
 	}
 
 	jsonSuccess(w, map[string]interface{}{
@@ -228,11 +228,11 @@ func (s *Server) handleQueryByPathV3(w http.ResponseWriter, r *http.Request) {
 		"tag":             tag,
 		"id":              file.ID,
 		"name":            file.FileName,
-		"path_display":    "/" + file.FileName,
+		"path_display":    file.FileName,
 		"content_hash":    file.MD5,
 		"size":            file.Size,
 		"lastUpdateTime":  file.UpdatedAt.Unix() * 1000,
-		"is_downloadable": !file.IsFolder,
+		"_downloadable": !file.IsFolder,
 	}
 
 	jsonSuccess(w, map[string]interface{}{
@@ -381,11 +381,11 @@ func (s *Server) handleMoveV3(w http.ResponseWriter, r *http.Request) {
 		"tag":             "file",
 		"id":              updatedFile.ID,
 		"name":            updatedFile.FileName,
-		"path_display":    "/" + updatedFile.FileName,
+		"path_display":    updatedFile.FileName,
 		"content_hash":    updatedFile.MD5,
 		"size":            updatedFile.Size,
 		"lastUpdateTime":  updatedFile.UpdatedAt.Unix() * 1000,
-		"is_downloadable": !updatedFile.IsFolder,
+		"_downloadable": !updatedFile.IsFolder,
 	}
 
 	// Return success
@@ -585,11 +585,11 @@ func (s *Server) handleCopyV3(w http.ResponseWriter, r *http.Request) {
 		"tag":             "file",
 		"id":              newEntry.ID,
 		"name":            newEntry.FileName,
-		"path_display":    "/" + newEntry.FileName,
+		"path_display":    newEntry.FileName,
 		"content_hash":    newEntry.MD5,
 		"size":            newEntry.Size,
 		"lastUpdateTime":  newEntry.UpdatedAt.Unix() * 1000,
-		"is_downloadable": !newEntry.IsFolder,
+		"_downloadable": !newEntry.IsFolder,
 	}
 
 	// Return success

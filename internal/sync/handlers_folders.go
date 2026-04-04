@@ -113,7 +113,7 @@ func (s *Server) handleCreateFolder(w http.ResponseWriter, r *http.Request) {
 		"tag":          "folder",
 		"id":           folderID,
 		"name":         finalName,
-		"path_display": "/" + finalName,
+		"path_display": finalName,
 	})
 }
 
@@ -236,16 +236,22 @@ func (s *Server) listEntriesWithPaths(ctx context.Context, userID, dirID int64, 
 			pathDisplay = basePath + "/" + entry.FileName
 		}
 
+		// SPC uses null lastUpdateTime for folders
+		var lastUpdateTime interface{}
+		if !entry.IsFolder {
+			lastUpdateTime = entry.UpdatedAt.Unix() * 1000
+		}
+
 		result = append(result, map[string]interface{}{
-			"tag":             tag,
-			"id":              entry.ID,
-			"name":            entry.FileName,
-			"path_display":    pathDisplay,
-			"content_hash":    entry.MD5,
-			"size":            entry.Size,
-			"lastUpdateTime":  entry.UpdatedAt.Unix() * 1000,
-			"is_downloadable": !entry.IsFolder,
-			"parent_path":     basePath,
+			"tag":            tag,
+			"id":             entry.ID,
+			"name":           entry.FileName,
+			"path_display":   pathDisplay,
+			"content_hash":   entry.MD5,
+			"size":           entry.Size,
+			"lastUpdateTime": lastUpdateTime,
+			"_downloadable":  !entry.IsFolder,
+			"parent_path":    basePath,
 		})
 
 		// Recurse into subfolders
